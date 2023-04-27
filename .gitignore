@@ -1,0 +1,61 @@
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# CCS
+.ccsproject
+.cproject
+.launches
+.project
+.settings/
+targetConfigs/
+
+# Build folders
+Debug/
+Release/
+build/
+build-*/
+
+# Microcontroller specifics
+*.cmd
+
+# CLion files
+.idea
+custom-compiler.yaml
+
+# CCS Project
+.cproject
+.ccproject
+
+# MacOS files
+*/.DS_Store
+.DS_Store
