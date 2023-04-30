@@ -26,6 +26,9 @@
 
 #include <msp430g2553.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 /******************************************************************************
  * CONSTANTS
  *****************************************************************************/
@@ -144,4 +147,7 @@ int serialReadInt(void);
  */
 void initMSP(void);
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* TEMPLATEEMP_H_ */

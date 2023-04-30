@@ -105,8 +105,8 @@ link_directories(
     ${CCS_BASE_MSP430}/include # Local where default .cmd files are
 )
 #-g
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --c++14 -vmsp --use_hw_mpy=none --advice:power='all' -g --printf_support=minimal --diag_warning=225 --diag_wrap=off --display_error_number --preproc_with_compile")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --c++14 -vmsp --use_hw_mpy=none --advice:power='all' -g --printf_support=minimal --diag_warning=225 --diag_wrap=off --display_error_number --preproc_with_compile")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -vmsp --use_hw_mpy=none --advice:power='all' -g --printf_support=minimal --diag_warning=225 --diag_wrap=off --display_error_number --preproc_with_compile")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -vmsp --use_hw_mpy=none --advice:power='all' -g --printf_support=minimal --diag_warning=225 --diag_wrap=off --display_error_number --preproc_with_compile")
 
 set(MSP_COMPILER 1)
 add_definitions(-D__MSP430G2553__)

@@ -11,7 +11,7 @@
  ******************************************************************************/
 
 #include "libs/templateEMP.h"
-#include "libs/LCD.h"
+#include "libs/LCD.hpp"
 
 int main(void) {
     initMSP();
