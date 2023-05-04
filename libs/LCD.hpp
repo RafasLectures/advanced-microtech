@@ -13,16 +13,22 @@
 /******************************************************************************
  * INCLUDES
  *****************************************************************************/
-#include <cstdint>
+
+#include "libs/common/GPIOs.hpp"
 
 #include <msp430g2553.h>
+
+#include <cstdint>
+
 namespace AdvancedMicrotech {
 /**
  *  4 bit control interface
  */
 class LCD {
 public:
-  LCD() = default;
+  LCD() = delete;
+  constexpr LCD(const Microtech::OutputHandle& selectRegisterHandle, const Microtech::OutputHandle& readWriteHandle,
+      const Microtech::OutputHandle& enableReadWriteHandle) : selectRegister(selectRegisterHandle), readWrite(readWriteHandle), enableReadWrite(enableReadWriteHandle){}
   ~LCD() = default;
 
   /**
@@ -76,7 +82,46 @@ public:
   void writeNumber(const int16_t number) noexcept;
 
 private:
+  enum class RegisterSelection {
+      INSTRUCTION = 0,
+      DATA
+  };
+  enum class DataOperation {
+      WRITE = 0,
+      READ
+  };
 
+  constexpr void setOperation(const DataOperation newOperation) noexcept {
+      if(newOperation == DataOperation::READ) {
+          readWrite.setState(Microtech::IOState::HIGH);
+      } else {
+          readWrite.setState(Microtech::IOState::LOW);
+      }
+  }
+  constexpr void setRegister(const RegisterSelection newSelection) noexcept {
+      if(newSelection == RegisterSelection::DATA) {
+          selectRegister.setState(Microtech::IOState::HIGH);
+      } else {
+          selectRegister.setState(Microtech::IOState::LOW);
+      }
+  }
+
+  void sendInstruction(const uint8_t instruction) noexcept;
+
+  void writeWordToBus(const uint8_t dataToWrite) noexcept;
+  void writeByteToBus(const uint8_t dataToWrite) noexcept;
+  bool isBusy() noexcept;
+  /**
+   * Signal RS. Selects registers.
+   *    False = Instruction register (for write)
+   *            Busy flag: address counter (for read)
+   *    True  = Data register (for write and read)
+   */
+  const Microtech::OutputHandle selectRegister;
+  const Microtech::OutputHandle readWrite;          ///< Signal R/W. Selects read or write. False = write; True = read
+  const Microtech::OutputHandle enableReadWrite;     ///< Signal E. Starts data read write
+
+  Microtech::IoBus<Microtech::IOPort::PORT_2, 0x0F> dataBus;
 };
 
 }

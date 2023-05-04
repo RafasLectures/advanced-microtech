@@ -108,4 +108,13 @@ constexpr TYPE getRegisterBits(volatile TYPE& registerRef, TYPE bitSelection, TY
   return (registerRef & bitSelection) >> shiftsRight;
 }
 
+
+template<typename TYPE>
+constexpr void writeValueToRegister(volatile TYPE& registerRef, TYPE bitSelection, TYPE value) noexcept {
+  const TYPE setVal = bitSelection & value;
+  const TYPE resetVal = bitSelection & ~value;
+  setRegisterBits(registerRef, setVal);
+  resetRegisterBits(registerRef, resetVal);
+}
+
 #endif  // MICROTECH_HELPERS_HPP
