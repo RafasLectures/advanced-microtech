@@ -26,9 +26,9 @@ namespace AdvancedMicrotech {
  */
 class LCD {
 public:
-  LCD() = delete;
-  constexpr LCD(const Microtech::OutputHandle& selectRegisterHandle, const Microtech::OutputHandle& readWriteHandle,
-      const Microtech::OutputHandle& enableReadWriteHandle) : selectRegister(selectRegisterHandle), readWrite(readWriteHandle), enableReadWrite(enableReadWriteHandle){}
+    constexpr LCD() {};
+  //constexpr LCD(const Microtech::OutputHandle& selectRegisterHandle, const Microtech::OutputHandle& readWriteHandle,
+  //    const Microtech::OutputHandle& enableReadWriteHandle) : selectRegister(selectRegisterHandle), readWrite(readWriteHandle), enableReadWrite(enableReadWriteHandle){}
   ~LCD() = default;
 
   /**
@@ -42,6 +42,7 @@ public:
 
   /**
    * Set the cursor to a certain x/y-position
+   * (x,y) -> (0,0) is top left and (15, 1) is bottom right.
    */
   void setCursorPosition(const uint8_t x, const uint8_t y) noexcept;
 
@@ -106,25 +107,50 @@ private:
       }
   }
 
+  constexpr void enableOperation(const bool enableOperation) noexcept {
+      enableReadWrite.setState(enableOperation);
+  }
+
   void sendInstruction(const uint8_t instruction) noexcept;
 
+  /**
+   * Method to write word (4 bits) to the bus.
+   * @param dataToWrite only the 4 LSB bits will be written
+   */
   void writeWordToBus(const uint8_t dataToWrite) noexcept;
+  /**
+   * Method to write a byte (8 bits) to the bus.
+   * @param dataToWrite byte to be written
+   */
   void writeByteToBus(const uint8_t dataToWrite) noexcept;
-  bool isBusy() noexcept;
+  /**
+   * Method to wait for the display until it is not busy anymore.
+   * It is a blocking call. So once called it will only return when the display
+   * is not busy anymore.
+   */
+  void waitUntilNotBusy() noexcept;
+
+  void writeDigitOfNumber(int16_t number, uint8_t digit);
+
   /**
    * Signal RS. Selects registers.
    *    False = Instruction register (for write)
    *            Busy flag: address counter (for read)
    *    True  = Data register (for write and read)
    */
-  const Microtech::OutputHandle selectRegister;
-  const Microtech::OutputHandle readWrite;          ///< Signal R/W. Selects read or write. False = write; True = read
-  const Microtech::OutputHandle enableReadWrite;     ///< Signal E. Starts data read write
+  const Microtech::OutputHandle selectRegister{Microtech::GPIOs::getOutputHandle<Microtech::IOPort::PORT_3, static_cast<uint8_t>(0)>()};
+  const Microtech::OutputHandle readWrite = Microtech::GPIOs::getOutputHandle<Microtech::IOPort::PORT_3, static_cast<uint8_t>(1)>();          ///< Signal R/W. Selects read or write. False = write; True = read
+  const Microtech::OutputHandle enableReadWrite = Microtech::GPIOs::getOutputHandle<Microtech::IOPort::PORT_3, static_cast<uint8_t>(2)>();     ///< Signal E. Enables/disables data read or write
 
-  Microtech::IoBus<Microtech::IOPort::PORT_2, 0x0F> dataBus;
+
+  Microtech::IoBus<Microtech::IOPort::PORT_2, 0x0F> dataBus; ///< Databus that connects the display to the microcontroller
+
+  uint8_t displayControl = 0;           ///< Attribute that holds the current "state" of the display control.
+  uint8_t functionSet = 0;              ///< Attribute that holds the current "state" of the function set.
 };
 
 }
+#if 0
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -166,5 +192,6 @@ void lcd_putText(char* text);
 void lcd_putNumber(int number);
 #ifdef __cplusplus
 }
+#endif
 #endif
 #endif /* LIBS_LCD_H_ */

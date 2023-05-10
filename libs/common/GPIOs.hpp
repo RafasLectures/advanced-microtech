@@ -480,7 +480,7 @@ public:
 
     constexpr uint8_t read() const noexcept {
         // Set pins as input
-        setRegisterBits(GPIORegisters::getPxDir(port), bitMask);
+        resetRegisterBits(GPIORegisters::getPxDir(port), bitMask);
         return getRegisterBits(GPIORegisters::getPxIn(port), bitMask, static_cast<uint8_t>(0));
     }
 
@@ -490,135 +490,6 @@ public:
         return writeValueToRegister(GPIORegisters::getPxOut(port), bitMask, newValue);
     }
 };
-//
-//template<IOPort port, uint8_t desiredPin, uint8_t bitMask = static_cast<uint8_t>(1) << desiredPin>
-//class IoHandle {
-//public:
-//    IoHandle() = delete;
-//  /**
-//   * Class constructor.
-//   *
-//   * Since the constructor is constexpr the compiler tries to resolved in compile time
-//   */
-//  explicit constexpr IoHandle(IoDirection direction){}
-//
-//  /**
-//   * Class constructor with the possibility of setting an initial state.
-//   *
-//   * Since the constructor is constexpr the compiler tries to resolved in compile time
-//   *
-//   * @param initialState initial state of the output
-//   */
-//  explicit constexpr IoHandle(IoDirection direction, IOState initialState) {
-//      if(direction == IoDirection::OUTPUT) {
-//          setState(initialState);
-//      }
-//  }
-//
-//
-//  /**
-//   * Method initializes the pin. It sets the pin as an output.
-//   */
-//  constexpr void init() const {
-//    setRegisterBits(GPIORegisters::getPxDir(port), bitMask);
-//    resetRegisterBits(GPIORegisters::getPxSel(port), bitMask);
-//    resetRegisterBits(GPIORegisters::getPxSel2(port), bitMask);
-//  }
-//
-//  /**
-//   * Overloaded method (see next method) so one can set the pin state using a boolean.
-//   * true = IOState::HIGH
-//   * false == IOState::LOW
-//   *
-//   * The compiler tries to already resolve this in compile time.
-//   *
-//   * @param state Desired pin state.
-//   */
-//  constexpr void setState(const bool state) const noexcept {
-//    if (state) {
-//      setRegisterBits(GPIORegisters::getPxOut(port), bitMask);
-//    } else {
-//      resetRegisterBits(GPIORegisters::getPxOut(port), bitMask);
-//    }
-//  }
-//  /**
-//   * Sets the Pin to an specific state. IOState::HIGH or IOState::LOW
-//   *
-//   * The compiler tries to already resolve this in compile time.
-//   *
-//   * @param state Desired pin state.
-//   */
-//  constexpr void setState(const IOState state) const noexcept {
-//    // Calls the overloaded method with boolean arguments
-//    setState(state == IOState::HIGH);
-//  }
-//
-//  /**
-//   * Toggles the Pin. If the pin state is IOState::HIGH it will toggle to IOState::LOW or vice-versa
-//   *
-//   * The compiler tries to already resolve this in compile time.
-//   *
-//   */
-//  constexpr void toggle() const noexcept {
-//    toggleRegisterBits(GPIORegisters::getPxOut(port), bitMask);
-//  }
-//
-//  /**
-//   * Gets the state of the Pin.
-//   *
-//   * The compiler tries to already resolve this in compile time.
-//   *
-//   * @returns The state of the pin. IOState::HIGH or IOState::LOW
-//   */
-//  constexpr IOState getState() const noexcept {
-//    // According to MSP430 Manual, PxIn will always be updated with the pins state
-//    // regardless if it is configured as an input or output.
-//    if (getRegisterBits(GPIORegisters::getPxIn(port), bitMask, desiredPin)) {
-//      return IOState::HIGH;
-//    }
-//    return IOState::LOW;
-//  }
-//
-//  /**
-//   * Method to enable an interrupt at the pin.
-//   * At the moment hard-coded to be High/Low edge
-//   *
-//   * @note it can be improved in the future to take the edge as a parameter.
-//   */
-////  void enableInterrupt() const noexcept {
-////    // somehow I need to find a way to wrap the pin interrupt here and
-////    // add a callback. But for now we just enable the pin interrupt and
-////    // the rest has to be handled from the outside
-////    setRegisterBits(PxIes, mBitMask);    // High /Low - Edge
-////    resetRegisterBits(PxIfg, mBitMask);  // Clear interrupt flag
-////    setRegisterBits(PxIe, mBitMask);     // Enable interrupt
-////
-////  }
-////
-////  void disableInterrupt() const noexcept {
-////    resetRegisterBits(PxIe, mBitMask);  // Disable interrupt
-////  }
-//
-//  constexpr bool enablePinResistor(IOResistor resistorType) const {
-//      setRegisterBits(GPIORegisters::getPxRen(port), bitMask);
-//      switch (resistorType) {
-//      case IOResistor::PULL_DOWN:
-//        resetRegisterBits(GPIORegisters::getPxOut(port), bitMask);
-//        break;
-//      case IOResistor::PULL_UP:
-//        setRegisterBits(GPIORegisters::getPxOut(port), bitMask);
-//        break;
-//      default:
-//        return false;
-//      }
-//      return true;
-//  }
-//
-//  constexpr void disablePinResistor() const {
-//    resetRegisterBits(GPIORegisters::getPxRen(port), bitMask);
-//  }
-//
-//};
 
 /**
  * This is a actually serves as a namespace to keep some GPIO classes together
