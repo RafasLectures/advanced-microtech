@@ -16,7 +16,7 @@
  * #define NO_TEMPLATE_ISR 1
  * right before you include this file.
  ******************************************************************************/
-
+#define NO_TEMPLATE_UART
 #include "./templateEMP.h"
 
 /******************************************************************************
