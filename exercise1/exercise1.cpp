@@ -19,29 +19,18 @@
 
 using namespace AdvancedMicrotech;
 
-/**
- * Microtech::GPIOs::getOutputHandle<Microtech::IOPort::PORT_3, static_cast<uint8_t>(0)>(),
-        Microtech::GPIOs::getOutputHandle<Microtech::IOPort::PORT_3, static_cast<uint8_t>(1)>(),
-        Microtech::GPIOs::getOutputHandle<Microtech::IOPort::PORT_3, static_cast<uint8_t>(2)>()
- */
 typedef GPIO_OUTPUT_T<3, 0, LOW> RS;
 typedef GPIO_OUTPUT_T<3, 1, LOW> RW;
 typedef GPIO_OUTPUT_T<3, 2, LOW> E;
 typedef PARALLEL_BUS_T<2, 0x0F> LCD_BUS;
 typedef LCD_T<RS, RW, E, LCD_BUS> LCD;
+//LCD lcd;
 
 int main(void) {
     initMSP();
 
     LCD::initialize();
     LCD::enable(true);
-    LCD::showCursor(true);
-    //LCD::blinkCursor(true);
-    //LCD::writeString("Hello world");
-    //LCD::setCursorPosition(1,10);
-    //LCD::writeNumber(-1000);
-    //LCD::clearDisplay();
-    //LCD::writeNumber(-1000);
 
     static constexpr uint16_t DELAY_TIME = 1000;
     while (1) {
@@ -57,6 +46,7 @@ int main(void) {
 
         LCD::clearDisplay();
         LCD::writeString("Enable/Disable..");
+        delay_ms(DELAY_TIME);
         LCD::enable(false);
         delay_ms(DELAY_TIME);
         LCD::enable(true);
@@ -65,22 +55,22 @@ int main(void) {
         LCD::writeString("Show/hide");
         LCD::setCursorPosition(0,1);
         LCD::writeString("cursor");
-        LCD::showCursor(false);
+        LCD::showCursor(1);
         delay_ms(DELAY_TIME);
-        LCD::showCursor(true);
+        LCD::showCursor(0);
 
         LCD::clearDisplay();
         LCD::writeString("Blink cursor");
-        LCD::blinkCursor(true);
+        LCD::blinkCursor(1);
         delay_ms(3000);
-        LCD::blinkCursor(false);
+        LCD::blinkCursor(0);
 
         LCD::clearDisplay();
         LCD::writeString("Write numbers");
         LCD::setCursorPosition(0,1);
-        LCD::writeNumber(24);
+        LCD::writeNumber(32767);
         LCD::writeString("  ");
-        LCD::writeNumber(-12);
+        LCD::writeNumber(-32767);
         delay_ms(DELAY_TIME);
 
         LCD::clearDisplay();
