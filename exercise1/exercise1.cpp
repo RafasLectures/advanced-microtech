@@ -5,7 +5,13 @@
  *
  * @brief   Exercise 1 - Display Interface
  *
- * Description and pin connections go here.
+ * Implemented a class to abstract LCD operations
+ *
+ * Pin connections:  CON5:D4-CON5:D7 <-> CON3:P2.0-CON3:P2.3
+ *                   CON5:RS <-> CON4:P3.0
+ *                   CON5:RW <-> CON4:P3.1
+ *                   CON5:E <-> CON4:P3.2
+ *
  *
  * @note    The project was exported using CCS 12.1.0
  ******************************************************************************/
@@ -19,12 +25,16 @@
 
 using namespace AdvancedMicrotech;
 
-typedef GPIO_OUTPUT_T<3, 0, LOW> RS;
-typedef GPIO_OUTPUT_T<3, 1, LOW> RW;
-typedef GPIO_OUTPUT_T<3, 2, LOW> E;
+// Define pins
+typedef GPIO_OUTPUT_T<3, 0, LOW> RS;  // Pin P3.0 as output and initial value is 0
+typedef GPIO_OUTPUT_T<3, 1, LOW> RW;  // Pin P3.1 as output and initial value is 0
+typedef GPIO_OUTPUT_T<3, 2, LOW> E;   // Pin P3.2 as output and initial value is 0
+
+// Defines bus at port 2 with mask 0x0F
 typedef PARALLEL_BUS_T<2, 0x0F> LCD_BUS;
+
+// Defines the LCD with the pins and bus from above
 typedef LCD_T<RS, RW, E, LCD_BUS> LCD;
-//LCD lcd;
 
 int main(void) {
     initMSP();
