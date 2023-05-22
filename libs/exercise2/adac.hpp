@@ -1,9 +1,10 @@
-/***************************************************************************//**
- * @file    adac.h
- * @author  <your name>
- * @date    <date of creation>
- *
- * @brief   <brief description>
+/******************************************************************************
+ * @file                    adac.hpp
+ * @author                  Rafael Andrioli Bauer
+ * @date                    14.05.2023
+ * @matriculation number    5163344
+ * @e-mail contact          abauer.rafael@gmail.com
+ * @brief                   <brief description>
  *
  * Here goes a detailed description if required.
  ******************************************************************************/
@@ -15,7 +16,7 @@
  * INCLUDES
  *****************************************************************************/
 
-#include "./i2c.h"
+#include "i2c.hpp"
 
 /******************************************************************************
  * CONSTANTS
