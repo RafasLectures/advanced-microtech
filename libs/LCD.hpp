@@ -152,6 +152,10 @@ public:
    * @param number
    */
   static void writeNumber(int16_t number) noexcept {
+    if(number == 0) {
+        writeChar(0x30);
+        return;
+    }
     // In a signed number the most significant bit is 1. Since it is an int16, the mask checks only the last bit
     static constexpr int16_t SIGN_MASK = 0x8000;
     // Check if number is negative

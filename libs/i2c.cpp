@@ -10,13 +10,11 @@
 
 #include "./i2c.hpp"
 
+namespace AdvancedMicrotech {
 /******************************************************************************
  * VARIABLES
  *****************************************************************************/
 
-// A variable to be set by your interrupt service routine:
-// 1 if all bytes have been sent, 0 if transmission is still ongoing.
-unsigned char transferFinished = 0;
 
 /******************************************************************************
  * LOCAL FUNCTION PROTOTYPES
@@ -27,13 +25,25 @@ unsigned char transferFinished = 0;
 /******************************************************************************
  * LOCAL FUNCTION IMPLEMENTATION
  *****************************************************************************/
-
+void (*handleTxIsrFunc)(void);
+void (*handleRxIsrFunc)(void);
 
 
 /******************************************************************************
  * FUNCTION IMPLEMENTATION
  *****************************************************************************/
 
+#pragma vector = USCIAB0TX_VECTOR
+__interrupt void USCIAB0TX_ISR(void) {
+    handleTxIsrFunc();
+}
+
+#pragma vector = USCIAB0RX_VECTOR
+__interrupt void USCIAB0RX_ISR(void) {
+    handleRxIsrFunc();
+}
+}
+#if 0
 // TODO: Implement these functions:
 
 void i2c_init (unsigned char addr) {
@@ -67,6 +77,7 @@ void i2c_read(unsigned char length, unsigned char * rxData) {
 	while(!transferFinished);
 }
 
+
 #pragma vector = USCIAB0TX_VECTOR
 __interrupt void USCIAB0TX_ISR(void) {
 	// TODO: Read RX-Buffer or write TX-Buffer, depending on what you'd like to do.
@@ -78,5 +89,10 @@ __interrupt void USCIAB0TX_ISR(void) {
 
 #pragma vector = USCIAB0RX_VECTOR
 __interrupt void USCIAB0RX_ISR(void) {
-	// TODO: Check for NACKs
+    // If there is a NACK, try to transmit again.
+    if (*USCI::STAT & UCNACKIFG) {
+        *USCI::CTL1 |= UCTXSTT;
+        *USCI::STAT &= ~UCNACKIFG;
+    }
 }
+#endif

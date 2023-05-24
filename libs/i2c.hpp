@@ -1,12 +1,12 @@
 /******************************************************************************
 * @file                    i2c.hpp
 * @author                  Rafael Andrioli Bauer
-* @date                    14.05.2023
+* @date                    22.05.2023
 * @matriculation number    5163344
 * @e-mail contact          abauer.rafael@gmail.com
 * @brief                   <brief description>
 *
-* Here goes a detailed description if required.
+*  Its implementation must be in the header because it is templated.
 ******************************************************************************/
 
 #ifndef EXERCISE_LIBS_I2C_H_
@@ -14,49 +14,76 @@
 
 #include <msp430g2553.h>
 
+#include "common/usci.hpp"
 #include <cstdint>
 #include <cassert>
 
+namespace AdvancedMicrotech {
+
+extern void (*handleTxIsrFunc)(void);
+extern void (*handleRxIsrFunc)(void);
+
 template<typename SDA,
          typename SCL,
-         typename SMCLK>
-class I2C {
+         typename CLOCK,
+         uint32_t BAUDRATE = 100000,
+         const bool IS_MASTER = true>
+class I2C_T {
 public:
-
+  using USCI = USCI_T<USCI_MODULE::USCI_B, 0>;
   /**
    * Initialize the I2C state machine. The speed is 100 kBit/s.
    * @param slaveAddress The 7-bit address of the slave (MSB shall always be 0, i.e. "right alignment").
    *
    * (2 pts.)
    */
-  constexpr void initialize(const uint8_t slaveAddress) noexcept {
-    static constexpr uint8_t BIT_8_MASK = 0x80;
+  static constexpr void initialize(const uint8_t slaveAddress) noexcept {
     // The address must be a 7-bit size, so first check if input size is correct.
-    if(slaveAddress & BIT_8_MASK) {
+    if(slaveAddress & 0x80) {
       assert(false);
       return;
     }
 
     SDA::init();
     SCL::init();
+    handleTxIsrFunc = &I2C_T<SDA, SCL, CLOCK, BAUDRATE, IS_MASTER>::handleTxIsr;
+    handleRxIsrFunc = &I2C_T<SDA, SCL, CLOCK, BAUDRATE, IS_MASTER>::handleRxIsr;
 
     // Enable SW reset to prevent the operation of USCI.
     // According to the datasheet:
     // "Configuring and reconfiguring the USCI module should be done when
     // UCSWRST is set to avoid unpredictable behavior."
-    UCB0CTL1 |= UCSWRST;
-    // Sets USCI as I2C mode, I2C Master, synchronous mode
-    UCB0CTL0 = UCMST+UCMODE_3+UCSYNC;
+    *USCI::CTL1 |= UCSWRST;
 
-    UCB0CTL1 = UCSSEL_2+UCSWRST;              // Use SMCLK, keep SW reset
+    // Sets as I2C master or not, USCI as I2C mode and synchronous mode
+    *USCI::CTL0 = (IS_MASTER ? UCMST : 0) | UCMODE_3 | UCSYNC;
 
-    // TODO Do constexpr equation to calculate this.
-    UCB0BR0 = 12;                             // fSCL = SMCLK/12 = ~100kHz
-    UCB0BR1 = 0;
+    // Calculate in compile time the value from the register based on the frequency of the clock and the
+    // desired baud rate.
+    *USCI::BR0 = (CLOCK::frequency / BAUDRATE) & 0xff;
+    *USCI::BR1 = (CLOCK::frequency / BAUDRATE) >> 8;
 
-    UCB0I2CSA = slaveAddress;                 // Set slave address.
-    UCB0CTL1 &= ~UCSWRST;                     // Clear SW reset, resume operation
-    IE2 |= UCB0RXIE;                          // Enable RX interrupt
+    *USCI::I2CSA = slaveAddress;                 // Set slave address.
+
+    // Sets USCI clock source according to template argument
+    if (CLOCK::type == CLOCK_TYPE_ACLK) {
+        *USCI::CTL1 = UCSSEL_1| UCSWRST;
+    } else {
+        // Sets to SMCLK. UCLKI is not an option, since it is only used for SPI.
+        *USCI::CTL1 = UCSSEL_2 | UCSWRST;
+    }
+    *USCI::CTL1 &= ~UCTXSTT;
+    *USCI::CTL1 &= ~UCTXSTP;
+
+    *USCI::CTL1 &= ~UCSWRST;
+
+    transferCount = 0;
+    transferBuffer = nullptr;
+    nackReceived = false;
+    transferFinished = false;
+    USCI::clear_rx_irq();
+    USCI::clear_tx_irq();
+    USCI::disable_rx_tx_irq();
   }
 
   /**
@@ -68,34 +95,146 @@ public:
    *
    * (2 pts.)
    */
-  uint8_t write(const uint8_t length, uint8_t* txData, const uint8_t stop) noexcept {
+  static bool write(const uint8_t length, uint8_t* txData, const bool stop) noexcept {
     // Before writing, you should always check if the last STOP-condition has already been sent.
-    while (UCB0CTL1 & UCTXSTP) {}
-    // read UCBBUSY somewhere??
+    while (*USCI::CTL1 & UCTXSTP) {}
+    // Make sure the bus is not busy
+    while (*USCI::STAT & UCBBUSY) {}
 
-    // TODO check that
-    UCB0CTL1 |= UCTR + UCTXSTT;             // I2C TX, start condition
-    __bis_SR_register(CPUOFF + GIE);        // CPU off, interrupts enabled
-    while (UCB0CTL1 & UCTXSTT);             // Loop until I2C STT is sent
-    UCB0CTL1 |= UCTXSTP;                    // I2C stop condition after 1st TX
+   nackReceived = false;
+   transferFinished = false;
+   transferBuffer = txData;               // Assign TX buffer to the txData pointer
+   transferCount = length;
+   sendStop = stop;
+
+   USCI::clear_tx_irq();
+   USCI::enable_rx_tx_irq();
+
+   *USCI::CTL1 |= UCTR + UCTXSTT;          // I2C as TX and send start condition
+
+   // This makes the function a blocking function
+   while(!transferFinished/* && !nackReceived*/) {}            // Wait in this function until transferCount is 0
+
+   if(stop) {
+     *USCI::CTL1 |= UCTXSTP;                    // I2C stop condition
+   }
+   // Make sure the bus is not busy
+   //while (*USCI::STAT & UCSTPIFG) {}
+   //*USCI::STAT &= ~UCSTPIFG;
+
+   transferBuffer = nullptr;
+   transferCount = 0;
+   return nackReceived;
   }
 
   /**
    * Performs a read of the I2C bus. It listens for the specific amount of characters defined by the input argument
    * and writes them to the input pointer.
    * The allocation of the memory must be guaranteed by the user.
-   * @param length The amu
+   * @param length The amount of data to be transfered
    * @param rxData [output] Pointer to the container that will be written.
    *
    * (2 pts.)
    */
-  void read(const uint8_t length, uint8_t* rxData) {
-    // TODO check that
-    UCB0CTL1 &= ~UCTR;                      // I2C RX
-    UCB0CTL1 |= UCTXSTT;                    // I2C start condition
-    while (UCB0CTL1 & UCTXSTT);             // Loop until I2C STT is sent
+  static void read(const uint8_t length, uint8_t* rxData) {
+    while (*USCI::CTL1 & UCTXSTP) {}
+    transferBuffer = rxData;               // Assign TX buffer to the txData pointer
+    transferCount = length;
+    nackReceived = false;
+    transferFinished = false;
+
+    *USCI::CTL1 &= ~UCTR;                      // I2C RX
+    USCI::clear_tx_irq();
+    USCI::clear_rx_irq();
+    // only enable the interrupt, the disable must happen in the interruption handling method.
+    USCI::enable_rx_tx_irq();
+
+    *USCI::CTL1 |= UCTXSTT;                    // I2C start condition
+    while(!transferFinished/* && !nackReceived*/) {}            // Wait in this function until transferCount is 0
+
+
+    transferBuffer = nullptr;
   }
+
+  static void handleTxIsr() {
+
+      // The UCx0TXIFG is set when TXBUF is empty.
+      if(USCI::tx_irq_pending()) {
+          if(transferCount > 0) {
+              *USCI::TXBUF = *transferBuffer++;
+              transferCount--;
+          } else {
+              // Only send stop after the last byte has been transfered
+              //if(sendStop) {
+              //  *USCI::CTL1 |= UCTXSTP;                    // I2C stop condition
+              //  sendStop = false;
+              // }
+
+              transferFinished = true;
+              USCI::disable_rx_tx_irq();
+          }
+      }
+      // The UCx0RXIFG is set when RXBUF has received a complete charachter.
+      if(USCI::rx_irq_pending()) {
+          if(transferCount > 0) {
+              *transferBuffer++ = *USCI::RXBUF;
+              transferCount--;
+          }
+
+
+          if(transferCount == 1) {
+              *USCI::CTL1 |= UCTXSTP;                    // I2C stop condition
+          }
+
+          if(transferCount == 0) {
+              transferFinished = true;
+              USCI::disable_rx_tx_irq();
+          }
+      }
+  }
+
+  static void handleRxIsr() {
+      // If there is a NACK, set internal variable to true;
+      if (*USCI::STAT & UCNACKIFG) {
+          nackReceived = true;
+          *USCI::STAT &= ~UCNACKIFG;
+      }
+      if (*USCI::STAT & UCSTPIFG){                        //Stop/NACK Interrupt flag
+          *USCI::STAT &= ~(UCSTTIFG + UCSTPIFG + UCNACKIFG);     //clear START/STOP/NACK interrupt flags
+      }
+      if (*USCI::STAT & UCSTTIFG)            //Start Interrupt flag
+      {
+          *USCI::STAT &= ~(UCSTTIFG);                    //clear Start Interrupt flag
+      }
+  }
+private:
+  static uint8_t transferCount;
+  static uint8_t* transferBuffer;
+  //static uint8_t transferTotalLength;
+
+  static bool nackReceived;
+  static bool transferFinished;
+  static bool sendStop;
 };
+
+
+template<typename SDA, typename SCL, typename CLOCK, uint32_t BAUDRATE, const bool IS_MASTER>
+uint8_t I2C_T<SDA, SCL, CLOCK, BAUDRATE, IS_MASTER>::transferCount;
+
+template<typename SDA, typename SCL, typename CLOCK, uint32_t BAUDRATE, const bool IS_MASTER>
+uint8_t* I2C_T<SDA, SCL, CLOCK, BAUDRATE, IS_MASTER>::transferBuffer;
+
+//template<typename SDA, typename SCL, typename CLOCK, uint32_t BAUDRATE, const bool IS_MASTER>
+//uint8_t I2C_T<SDA, SCL, CLOCK, BAUDRATE, IS_MASTER>::transferTotalLength;
+
+template<typename SDA, typename SCL, typename CLOCK, uint32_t BAUDRATE, const bool IS_MASTER>
+bool I2C_T<SDA, SCL, CLOCK, BAUDRATE, IS_MASTER>::nackReceived;
+
+template<typename SDA, typename SCL, typename CLOCK, uint32_t BAUDRATE, const bool IS_MASTER>
+bool I2C_T<SDA, SCL, CLOCK, BAUDRATE, IS_MASTER>::transferFinished;
+
+template<typename SDA, typename SCL, typename CLOCK, uint32_t BAUDRATE, const bool IS_MASTER>
+bool I2C_T<SDA, SCL, CLOCK, BAUDRATE, IS_MASTER>::sendStop;
 
 /******************************************************************************
  * FUNCTION PROTOTYPES
@@ -115,4 +254,5 @@ unsigned char i2c_write(unsigned char length, unsigned char * txData, unsigned c
 void i2c_read(unsigned char length, unsigned char * rxData);
 #endif
 
+}
 #endif /* EXERCISE_LIBS_I2C_H_ */
