@@ -1,7 +1,7 @@
 
 add_subdirectory(common)
 
-set(SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/LCD.cpp)
+set(SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/i2c.cpp)
 
 add_library(libs ${SOURCES})
 add_library(AdvancedMicrotech::Libs ALIAS libs)
