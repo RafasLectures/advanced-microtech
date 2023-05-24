@@ -13,8 +13,8 @@
 #define LIBS_COMMON_FIELDS_HPP_
 
 #include <cstdint>
-#include <type_traits>
 #include <limits>
+#include <type_traits>
 
 namespace AdvancedMicrotech {
 
@@ -61,7 +61,6 @@ public:
   static constexpr FRAME_TYPE MASK = mask;
   static constexpr FRAME_TYPE POSITION = position;
 };
-}
-
+}  // namespace AdvancedMicrotech
 
 #endif /* LIBS_COMMON_FIELDS_HPP_ */

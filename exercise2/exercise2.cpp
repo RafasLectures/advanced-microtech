@@ -1,4 +1,4 @@
-/***************************************************************************//**
+/******************************************************************************
  * @file    main.cpp
  * @author  Rafael Andrioli Bauer
  * @date    22.05.2023
@@ -26,19 +26,17 @@
 
 #define NO_TEMPLATE_UART
 
-#include "libs/templateEMP.h"   // UART disabled, see @note!
 #include "libs/LCD.hpp"
-#include "libs/common/parallelbus.hpp"
-#include "libs/common/gpio.hpp"
-#include "libs/i2c.hpp"
 #include "libs/adac.hpp"
-
-//#include "libs/adac.hpp"
+#include "libs/common/gpio.hpp"
+#include "libs/common/parallelbus.hpp"
+#include "libs/i2c.hpp"
+#include "libs/templateEMP.h"  // UART disabled, see @note!
 
 using namespace AdvancedMicrotech;
 
 // =========== Clocks ============
-typedef DCOCLK_T<1000000> DCO;          // Set DCO clock as 1MHz (eventhough is already done in the initMSP)
+typedef DCOCLK_T<1000000> DCO;  // Set DCO clock as 1MHz (eventhough is already done in the initMSP)
 // Setting DCO as SMCLK clock source. (necessary for later when using the I2C,
 // so we can set the BR0 and BR1 on compile time.
 typedef SMCLK_T<DCO> SMCLK;
@@ -55,58 +53,56 @@ typedef PARALLEL_BUS_T<2, 0x0F> LCD_BUS;
 typedef LCD_T<RS, RW, E, LCD_BUS> LCD;
 
 // ============ I2C ==============
-typedef GPIO_OUTPUT_T<1, 3, HIGH> I2C_SPI;   // Pin P1.3 as output and initial value is 1
-typedef GPIO_MODULE_T<1, 6, 3> SCL;          // Setting P1.6 as its function 3 (SCL)
-typedef GPIO_MODULE_T<1, 7, 3> SDA;          // Setting P1.7 as its function 3 (SDA)
-typedef I2C_T<SDA, SCL, SMCLK> I2C;
+typedef GPIO_OUTPUT_T<1, 3, HIGH> I2C_SPI;  // Pin P1.3 as output and initial value is 1
+typedef GPIO_MODULE_T<1, 6, 3> SCL;         // Setting P1.6 as its function 3 (SCL)
+typedef GPIO_MODULE_T<1, 7, 3> SDA;         // Setting P1.7 as its function 3 (SDA)
+typedef I2C_T<SDA, SCL, SMCLK> I2C;         // Create I2C and set the SDA and SCL pins. SMCLK is set as clock source.
 
 // ============ ADC ===========
-typedef ADC_DAC_T<I2C> ADC_DAC;
+typedef ADC_DAC_T<I2C> ADC_DAC;  // Create the ADC and pass the I2C as communication means.
 
 int main(void) {
+  initMSP();
 
-    initMSP();
+  // Initialize LCD
+  LCD::initialize();
+  LCD::enable(true);
+  LCD::clearDisplay();
+  LCD::writeString("AD0:    AD1:   ");
+  LCD::setCursorPosition(0, 1);
+  LCD::writeString("AD2:    AD3:   ");
 
-    LCD::initialize();
-    LCD::enable(true);
-    LCD::clearDisplay();
-    LCD::writeString("AD0:    AD1:   ");
-    LCD::setCursorPosition(0,1);
-    LCD::writeString("AD2:    AD3:   ");
-    I2C_SPI::init();
-    ADC_DAC::initialize();
+  // Initialize I2C and ADC/DAC
+  I2C_SPI::init();
+  ADC_DAC::initialize();
 
-    static constexpr uint8_t X_AD_CHANNEL = 1;
+  static constexpr uint8_t X_AD_CHANNEL = 1;         // Variable just to make easier to extract the ADC value
+  uint8_t adcValues[ADC_DAC::NUMBER_AD_CHANNELS]{};  // Buffer used to retrieve the ADC values
 
-    uint8_t adcValues[ADC_DAC::NUMBER_AD_CHANNELS]{};
+  while (1) {
+    ADC_DAC::read(adcValues);
+    ADC_DAC::write(adcValues[X_AD_CHANNEL]);
+
+    // Write ADC results in the LCD, mostly for debugging.
     uint8_t adcIndex = 0;
+    uint8_t line = 0;
+    while (adcIndex < ADC_DAC::NUMBER_AD_CHANNELS) {
+      LCD::setCursorPosition(2, line);
+      LCD::writeNumber(adcIndex);
+      LCD::setCursorPosition(4, line);
+      LCD::writeString("    ");
+      LCD::setCursorPosition(4, line);
+      LCD::writeNumber(adcValues[adcIndex]);
+      adcIndex++;
 
-    while (1) {
-
-        ADC_DAC::read(adcValues);
-        ADC_DAC::write(adcValues[X_AD_CHANNEL]);
-
-        // Write ADC results in the LCD, mostly for debugging.
-        adcIndex = 0;
-        uint8_t line = 0;
-        while(adcIndex < ADC_DAC::NUMBER_AD_CHANNELS){
-
-            LCD::setCursorPosition(2,line);
-            LCD::writeNumber(adcIndex);
-            LCD::setCursorPosition(4,line);
-            LCD::writeString("    ");
-            LCD::setCursorPosition(4,line);
-            LCD::writeNumber(adcValues[adcIndex]);
-            adcIndex++;
-
-            LCD::setCursorPosition(10,line);
-            LCD::writeNumber(adcIndex);
-            LCD::setCursorPosition(12,line);
-            LCD::writeString("    ");
-            LCD::setCursorPosition(12,line);
-            LCD::writeNumber(adcValues[adcIndex]);
-            adcIndex++;
-            line++;
-        }
+      LCD::setCursorPosition(10, line);
+      LCD::writeNumber(adcIndex);
+      LCD::setCursorPosition(12, line);
+      LCD::writeString("    ");
+      LCD::setCursorPosition(12, line);
+      LCD::writeNumber(adcValues[adcIndex]);
+      adcIndex++;
+      line++;
     }
+  }
 }

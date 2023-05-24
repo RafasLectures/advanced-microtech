@@ -1,11 +1,11 @@
-/***************************************************************************//**
+/******************************************************************************
  * @file    i2c.cpp
- * @author  <your name>
- * @date    <date of creation>
+ * @author                  Rafael Andrioli Bauer
+ * @date                    22.05.2023
+ * @matriculation number    5163344
+ * @e-mail contact          abauer.rafael@gmail.com
  *
- * @brief   <brief description>
- *
- * Here goes a detailed description if required.
+ * @brief   File with the declaration of the USCI interruptions
  ******************************************************************************/
 
 #include "./i2c.hpp"
@@ -16,14 +16,14 @@ namespace AdvancedMicrotech {
 void (*handleUSCIB0TxIsrFunc)(void);
 void (*handleUSCIB0RxIsrFunc)(void);
 
+}  // namespace AdvancedMicrotech
 
 #pragma vector = USCIAB0TX_VECTOR
 __interrupt void USCIAB0TX_ISR(void) {
-    handleUSCIB0TxIsrFunc();
+  AdvancedMicrotech::handleUSCIB0TxIsrFunc();
 }
 
 #pragma vector = USCIAB0RX_VECTOR
 __interrupt void USCIAB0RX_ISR(void) {
-    handleUSCIB0RxIsrFunc();
-}
+  AdvancedMicrotech::handleUSCIB0RxIsrFunc();
 }
