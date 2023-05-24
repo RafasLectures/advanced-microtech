@@ -20,6 +20,8 @@
 
 namespace AdvancedMicrotech {
 
+// Function pointers that are called by the interruptions.
+// They are set in the initialize methods of the I2C.
 extern void (*handleUSCIB0TxIsrFunc)(void);
 extern void (*handleUSCIB0RxIsrFunc)(void);
 
