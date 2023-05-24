@@ -74,50 +74,36 @@ int main(void) {
     I2C_SPI::init();
     ADC_DAC::initialize();
 
-    //static constexpr uint16_t DELAY_TIME = 1000;
+    static constexpr uint8_t X_AD_CHANNEL = 1;
+    static constexpr uint8_t Y_AD_CHANNEL= 2;
+    static constexpr uint8_t BUTTON_AD_CHANNEL = 2;
+
     uint8_t adcValues[ADC_DAC::NUMBER_AD_CHANNELS]{};
     uint8_t adcIndex = 0;
 
-    ADC_DAC::read(adcValues);
     while (1) {
 
         ADC_DAC::read(adcValues);
+        ADC_DAC::write(adcValues[X_AD_CHANNEL]);
 
         adcIndex = 0;
-        LCD::setCursorPosition(2,0);
-        LCD::writeNumber(adcIndex);
-        LCD::setCursorPosition(4,0);
-        LCD::writeString("    ");
-        LCD::setCursorPosition(4,0);
-        LCD::writeNumber(adcValues[adcIndex]);
+        while(adcIndex < ADC_DAC::NUMBER_AD_CHANNELS){
+            const uint8_t line = adcIndex % ADC_DAC::NUMBER_AD_CHANNELS;
+            LCD::setCursorPosition(2,line);
+            LCD::writeNumber(adcIndex);
+            LCD::setCursorPosition(4,line);
+            LCD::writeString("    ");
+            LCD::setCursorPosition(4,line);
+            LCD::writeNumber(adcValues[adcIndex]);
+            adcIndex++;
 
-        adcIndex++;
-        LCD::setCursorPosition(10,0);
-        LCD::writeNumber(adcIndex);
-        LCD::setCursorPosition(12,0);
-        LCD::writeString("    ");
-        LCD::setCursorPosition(12,0);
-        LCD::writeNumber(adcValues[adcIndex]);
-
-
-        adcIndex++;
-        LCD::setCursorPosition(2,1);
-        LCD::writeNumber(adcIndex);
-        LCD::setCursorPosition(4,1);
-        LCD::writeString("    ");
-        LCD::setCursorPosition(4,1);
-        LCD::writeNumber(adcValues[adcIndex]);
-
-
-        adcIndex++;
-        LCD::setCursorPosition(10,1);
-        LCD::writeNumber(adcIndex);
-        LCD::setCursorPosition(12,1);
-        LCD::writeString("    ");
-        LCD::setCursorPosition(12,1);
-        LCD::writeNumber(adcValues[adcIndex]);
-
-        //delay_ms(DELAY_TIME);
-
+            LCD::setCursorPosition(10,line);
+            LCD::writeNumber(adcIndex);
+            LCD::setCursorPosition(12,line);
+            LCD::writeString("    ");
+            LCD::setCursorPosition(12,line);
+            LCD::writeNumber(adcValues[adcIndex]);
+            adcIndex++;
+        }
     }
 }
