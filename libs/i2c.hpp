@@ -20,8 +20,8 @@
 
 namespace AdvancedMicrotech {
 
-extern void (*handleTxIsrFunc)(void);
-extern void (*handleRxIsrFunc)(void);
+extern void (*handleUSCIB0TxIsrFunc)(void);
+extern void (*handleUSCIB0RxIsrFunc)(void);
 
 template<typename SDA,
          typename SCL,
@@ -46,8 +46,8 @@ public:
 
     SDA::init();
     SCL::init();
-    handleTxIsrFunc = &I2C_T<SDA, SCL, CLOCK, BAUDRATE, IS_MASTER>::handleTxIsr;
-    handleRxIsrFunc = &I2C_T<SDA, SCL, CLOCK, BAUDRATE, IS_MASTER>::handleRxIsr;
+    handleUSCIB0TxIsrFunc = &I2C_T<SDA, SCL, CLOCK, BAUDRATE, IS_MASTER>::handleTxIsr;
+    handleUSCIB0RxIsrFunc = &I2C_T<SDA, SCL, CLOCK, BAUDRATE, IS_MASTER>::handleRxIsr;
 
     // Enable SW reset to prevent the operation of USCI.
     // According to the datasheet:
@@ -80,7 +80,7 @@ public:
     transferCount = 0;
     transferBuffer = nullptr;
     nackReceived = false;
-    transferFinished = false;
+
     USCI::clear_rx_irq();
     USCI::clear_tx_irq();
     USCI::disable_rx_tx_irq();
@@ -101,11 +101,9 @@ public:
     // Make sure the bus is not busy
     while (*USCI::STAT & UCBBUSY) {}
 
-   nackReceived = false;
-   transferFinished = false;
    transferBuffer = txData;               // Assign TX buffer to the txData pointer
    transferCount = length;
-   sendStop = stop;
+   nackReceived = false;
 
    USCI::clear_tx_irq();
    USCI::enable_rx_tx_irq();
@@ -113,14 +111,11 @@ public:
    *USCI::CTL1 |= UCTR + UCTXSTT;          // I2C as TX and send start condition
 
    // This makes the function a blocking function
-   while(!transferFinished/* && !nackReceived*/) {}            // Wait in this function until transferCount is 0
+   while(transferCount > 0) {}            // Wait in this function until transferCount is 0
 
    if(stop) {
      *USCI::CTL1 |= UCTXSTP;                    // I2C stop condition
    }
-   // Make sure the bus is not busy
-   //while (*USCI::STAT & UCSTPIFG) {}
-   //*USCI::STAT &= ~UCSTPIFG;
 
    transferBuffer = nullptr;
    transferCount = 0;
@@ -137,84 +132,62 @@ public:
    * (2 pts.)
    */
   static void read(const uint8_t length, uint8_t* rxData) {
+    // Before reading, you should always check if the last STOP-condition has already been sent.
     while (*USCI::CTL1 & UCTXSTP) {}
+
     transferBuffer = rxData;               // Assign TX buffer to the txData pointer
     transferCount = length;
     nackReceived = false;
-    transferFinished = false;
 
-    *USCI::CTL1 &= ~UCTR;                      // I2C RX
     USCI::clear_tx_irq();
     USCI::clear_rx_irq();
+
     // only enable the interrupt, the disable must happen in the interruption handling method.
     USCI::enable_rx_tx_irq();
 
-    *USCI::CTL1 |= UCTXSTT;                    // I2C start condition
-    while(!transferFinished/* && !nackReceived*/) {}            // Wait in this function until transferCount is 0
-
+    *USCI::CTL1 &= ~UCTR;                  // I2C RX
+    *USCI::CTL1 |= UCTXSTT;                // I2C start condition
+    while(transferCount > 0) {}            // Wait in this function until transferCount is 0
 
     transferBuffer = nullptr;
   }
 
   static void handleTxIsr() {
 
+      if(transferCount == 0) {
+        USCI::disable_rx_tx_irq();
+        return;
+      }
+
       // The UCx0TXIFG is set when TXBUF is empty.
       if(USCI::tx_irq_pending()) {
-          if(transferCount > 0) {
-              *USCI::TXBUF = *transferBuffer++;
-              transferCount--;
-          } else {
-              // Only send stop after the last byte has been transfered
-              //if(sendStop) {
-              //  *USCI::CTL1 |= UCTXSTP;                    // I2C stop condition
-              //  sendStop = false;
-              // }
-
-              transferFinished = true;
-              USCI::disable_rx_tx_irq();
-          }
+          *USCI::TXBUF = *transferBuffer++;
+          transferCount--;
       }
-      // The UCx0RXIFG is set when RXBUF has received a complete charachter.
-      if(USCI::rx_irq_pending()) {
-          if(transferCount > 0) {
-              *transferBuffer++ = *USCI::RXBUF;
-              transferCount--;
-          }
 
+      // The UCx0RXIFG is set when RXBUF has received a complete character.
+      if(USCI::rx_irq_pending()) {
+          *transferBuffer++ = *USCI::RXBUF;
+          transferCount--;
 
           if(transferCount == 1) {
               *USCI::CTL1 |= UCTXSTP;                    // I2C stop condition
-          }
-
-          if(transferCount == 0) {
-              transferFinished = true;
-              USCI::disable_rx_tx_irq();
           }
       }
   }
 
   static void handleRxIsr() {
-      // If there is a NACK, set internal variable to true;
+      // If there is a NACK, set internal variable to true and clear flag
       if (*USCI::STAT & UCNACKIFG) {
           nackReceived = true;
           *USCI::STAT &= ~UCNACKIFG;
-      }
-      if (*USCI::STAT & UCSTPIFG){                        //Stop/NACK Interrupt flag
-          *USCI::STAT &= ~(UCSTTIFG + UCSTPIFG + UCNACKIFG);     //clear START/STOP/NACK interrupt flags
-      }
-      if (*USCI::STAT & UCSTTIFG)            //Start Interrupt flag
-      {
-          *USCI::STAT &= ~(UCSTTIFG);                    //clear Start Interrupt flag
       }
   }
 private:
   static uint8_t transferCount;
   static uint8_t* transferBuffer;
-  //static uint8_t transferTotalLength;
 
   static bool nackReceived;
-  static bool transferFinished;
-  static bool sendStop;
 };
 
 
@@ -224,17 +197,9 @@ uint8_t I2C_T<SDA, SCL, CLOCK, BAUDRATE, IS_MASTER>::transferCount;
 template<typename SDA, typename SCL, typename CLOCK, uint32_t BAUDRATE, const bool IS_MASTER>
 uint8_t* I2C_T<SDA, SCL, CLOCK, BAUDRATE, IS_MASTER>::transferBuffer;
 
-//template<typename SDA, typename SCL, typename CLOCK, uint32_t BAUDRATE, const bool IS_MASTER>
-//uint8_t I2C_T<SDA, SCL, CLOCK, BAUDRATE, IS_MASTER>::transferTotalLength;
-
 template<typename SDA, typename SCL, typename CLOCK, uint32_t BAUDRATE, const bool IS_MASTER>
 bool I2C_T<SDA, SCL, CLOCK, BAUDRATE, IS_MASTER>::nackReceived;
 
-template<typename SDA, typename SCL, typename CLOCK, uint32_t BAUDRATE, const bool IS_MASTER>
-bool I2C_T<SDA, SCL, CLOCK, BAUDRATE, IS_MASTER>::transferFinished;
-
-template<typename SDA, typename SCL, typename CLOCK, uint32_t BAUDRATE, const bool IS_MASTER>
-bool I2C_T<SDA, SCL, CLOCK, BAUDRATE, IS_MASTER>::sendStop;
 
 /******************************************************************************
  * FUNCTION PROTOTYPES

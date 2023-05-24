@@ -38,7 +38,9 @@
 using namespace AdvancedMicrotech;
 
 // =========== Clocks ============
-typedef DCOCLK_T<> DCO;
+typedef DCOCLK_T<1000000> DCO;          // Set DCO clock as 1MHz (eventhough is already done in the initMSP)
+// Setting DCO as SMCLK clock source. (necessary for later when using the I2C,
+// so we can set the BR0 and BR1 on compile time.
 typedef SMCLK_T<DCO> SMCLK;
 // ============ LCD ==============
 // Define pins
@@ -54,8 +56,8 @@ typedef LCD_T<RS, RW, E, LCD_BUS> LCD;
 
 // ============ I2C ==============
 typedef GPIO_OUTPUT_T<1, 3, HIGH> I2C_SPI;   // Pin P1.3 as output and initial value is 1
-typedef GPIO_MODULE_T<1, 6, 3> SCL;
-typedef GPIO_MODULE_T<1, 7, 3> SDA;
+typedef GPIO_MODULE_T<1, 6, 3> SCL;          // Setting P1.6 as its function 3 (SCL)
+typedef GPIO_MODULE_T<1, 7, 3> SDA;          // Setting P1.7 as its function 3 (SDA)
 typedef I2C_T<SDA, SCL, SMCLK> I2C;
 
 // ============ ADC ===========
@@ -75,8 +77,6 @@ int main(void) {
     ADC_DAC::initialize();
 
     static constexpr uint8_t X_AD_CHANNEL = 1;
-    static constexpr uint8_t Y_AD_CHANNEL= 2;
-    static constexpr uint8_t BUTTON_AD_CHANNEL = 2;
 
     uint8_t adcValues[ADC_DAC::NUMBER_AD_CHANNELS]{};
     uint8_t adcIndex = 0;
@@ -86,9 +86,11 @@ int main(void) {
         ADC_DAC::read(adcValues);
         ADC_DAC::write(adcValues[X_AD_CHANNEL]);
 
+        // Write ADC results in the LCD, mostly for debugging.
         adcIndex = 0;
+        uint8_t line = 0;
         while(adcIndex < ADC_DAC::NUMBER_AD_CHANNELS){
-            const uint8_t line = adcIndex % ADC_DAC::NUMBER_AD_CHANNELS;
+
             LCD::setCursorPosition(2,line);
             LCD::writeNumber(adcIndex);
             LCD::setCursorPosition(4,line);
@@ -104,6 +106,7 @@ int main(void) {
             LCD::setCursorPosition(12,line);
             LCD::writeNumber(adcValues[adcIndex]);
             adcIndex++;
+            line++;
         }
     }
 }

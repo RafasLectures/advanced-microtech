@@ -86,9 +86,8 @@ public:
     }
 
     static bool read(uint8_t* values) {
-        const bool retVal = I2C::write(sizeof(controlByte), &controlByte, true);
         I2C::read(NUMBER_AD_CHANNELS, values);
-        return retVal;
+        return true;
     }
 
     static bool write(const uint8_t value) {
