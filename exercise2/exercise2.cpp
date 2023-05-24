@@ -18,7 +18,7 @@
  *                   JP2:BKL_ON
  *                   CON3:P3:6 <-> X1:Buzzer
  *
- * @note    The project was exported using CCS 8.0.0.
+ * @note    The project was exported using CCS 12.3.0.
  *          UART is disabled within templateEMP.h in order to avoid
  *          interference with your I2C routine!
  *
