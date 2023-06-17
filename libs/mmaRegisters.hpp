@@ -1,3 +1,13 @@
+/******************************************************************************
+ * @file                    mmaRegisters.hpp
+ * @author                  Rafael Andrioli Bauer
+ * @date                    16.06.2023
+ * @matriculation number    5163344
+ * @e-mail contact          abauer.rafael@gmail.com
+ *
+ * @brief   Header file with the declaration of the MMA Registers.
+ ******************************************************************************/
+
 #ifndef ADVANVED_MICROTECH_MMAREGISTERS_HPP
 #define ADVANVED_MICROTECH_MMAREGISTERS_HPP
 
@@ -6,52 +16,18 @@
 namespace AdvancedMicrotech {
 namespace MMA {
 
-template<typename I2C, uint8_t NEW_REG_ADDRESS, bool NEW_CAN_WRITE, typename newRawType>
-class RegisterBase {
-public:
-  using RawType = newRawType;  // Raw type of the register
-
-  static RawType readRegister() {
-    uint8_t regAddress = NEW_REG_ADDRESS;
-    I2C::write(1, &regAddress, false);
-    I2C::read(sizeof(currentVal), &currentVal);
-    return currentVal;
-  }
-
-  template<bool CAN_WRITE = NEW_CAN_WRITE, typename = std::enable_if_t<CAN_WRITE, bool>>
-  static bool writeCacheToRegister() {
-    static constexpr uint8_t WRITE_BUFFER_SIZE = 2;
-    uint8_t regAddress = NEW_REG_ADDRESS;
-    RawType writeBuffer[WRITE_BUFFER_SIZE] = {regAddress, currentVal};
-    return I2C::write(WRITE_BUFFER_SIZE, writeBuffer, true);
-  }
-
-  template<typename FIELD, bool CAN_WRITE = NEW_CAN_WRITE, typename = std::enable_if_t<CAN_WRITE, bool>>
-  static constexpr void encodeField(FIELD /*field*/, typename FIELD::FieldType toEncode) {
-    currentVal = FIELD::encode(currentVal, toEncode);
-  }
-
-  template<typename FIELD>
-  static constexpr typename FIELD::FieldType getFieldValue(FIELD /*field*/) {
-    return FIELD::decode(currentVal);
-  }
-  static RawType getCachedValue() {
-    return currentVal;
-  }
-
-private:
-  static RawType currentVal;
-};
-
-
 /**
- * The XYZ_DATA_CFG register sets the dynamic range and sets the high pass filter for the output data. When the HIGH_PASS_FILTER_OUT bit is set, both the FIFO and DATA registers will contain high pass filtered data
+ * The XYZ_DATA_CFG register sets the dynamic range and sets the high pass filter for the output data.
+ * When the HIGH_PASS_FILTER_OUT bit is set, both the FIFO and DATA registers will contain high pass filtered data
  * @tparam I2C
  * @tparam RawType
  */
-template<typename I2C, typename RawType = uint8_t>
-class XYZ_DATA_CFG : public RegisterBase<I2C, 0x0E, true, RawType> {
+class XYZ_DATA_CFG {
 public:
+  using RawType = uint8_t;  // Raw type of the register
+  static constexpr bool CAN_WRITE = true;
+  static constexpr uint8_t ADDRESS = 0x0E;
+
   /**
    *
    */
@@ -61,9 +37,11 @@ public:
   static constexpr Field<bool, RawType, 0x10, 4> HIGH_PASS_FILTER_OUT{};
 };
 
-template<typename I2C, typename RawType = uint8_t>
-class WHO_AM_I_DEVICE_ID : public RegisterBase<I2C, 0x0D, false, RawType> {
+class WHO_AM_I_DEVICE_ID {
 public:
+  using RawType = uint8_t;  // Raw type of the register
+  static constexpr bool CAN_WRITE = false;
+  static constexpr uint8_t ADDRESS = 0x0D;
 };
 
 /**
@@ -72,9 +50,11 @@ public:
  * @tparam I2C
  * @tparam RawType
  */
-template<typename I2C, typename RawType = uint8_t>
-class PULSE_CFG : public RegisterBase<I2C, 0x21, true, RawType> {
+class PULSE_CFG {
 public:
+  using RawType = uint8_t;  // Raw type of the register
+  static constexpr bool CAN_WRITE = true;
+  static constexpr uint8_t ADDRESS = 0x21;
 
   static constexpr Field<bool, RawType, 0x01, 0> X_SINGLE_PULSE_ENABLED{};
   static constexpr Field<bool, RawType, 0x02, 1> X_DOUBLE_PULSE_ENABLED{};
@@ -105,93 +85,98 @@ public:
  * @tparam I2C
  * @tparam RawType
  */
-template<typename I2C,  uint8_t REG_ADDRESS, typename RawType = uint8_t>
-class PULSE_THS : public RegisterBase<I2C, REG_ADDRESS, true, RawType> {
+template<uint8_t REG_ADDRESS>
+class PULSE_THS {
 public:
+  using RawType = uint8_t;  // Raw type of the register
+  static constexpr uint8_t ADDRESS = REG_ADDRESS;
+  static constexpr bool CAN_WRITE = true;
+
   static constexpr Field<RawType, RawType, 0x7F, 0> PULSE_THRESHOLD{};
 };
 
-template<typename I2C>
-class PULSE_THSX : public PULSE_THS<I2C, 0x23> {
+class PULSE_THSX : public PULSE_THS<0x23> {
 public:
-
 };
 
-template<typename I2C>
-class PULSE_THSY : public PULSE_THS<I2C, 0x24> {
+class PULSE_THSY : public PULSE_THS<0x24> {
 public:
-
 };
 
-template<typename I2C>
-class PULSE_THSZ : public PULSE_THS<I2C, 0x25> {
+class PULSE_THSZ : public PULSE_THS<0x25> {
 public:
 };
 
 /**
  * Pulse Time Window 1 Register
  *
- * The bits TMLT7 through TMLT0 define the maximum time interval that can elapse between the start of the acceleration on the
- * selected axis exceeding the specified threshold and the end when the acceleration on the selected axis must go below
- * the specified threshold to be considered a valid pulse.
+ * The bits TMLT7 through TMLT0 define the maximum time interval that can elapse between the start of the acceleration
+ * on the selected axis exceeding the specified threshold and the end when the acceleration on the selected axis must go
+ * below the specified threshold to be considered a valid pulse.
  *
  * The minimum time step for the pulse time limit is defined in Table 49 and Table 50. Maximum time for a given ODR and
- * Oversampling mode is the time step pulse multiplied by 255. The time steps available are dependent on the Oversampling
- * mode and whether the Pulse Low Pass Filter option is enabled or not. The Pulse Low Pass Filter is set in Register 0x0F.
- * @tparam I2C
- * @tparam RawType
+ * Oversampling mode is the time step pulse multiplied by 255. The time steps available are dependent on the
+ * Oversampling mode and whether the Pulse Low Pass Filter option is enabled or not. The Pulse Low Pass Filter is set in
+ * Register 0x0F.
  */
-template<typename I2C, typename RawType = uint8_t>
-class PULSE_TMLT : public RegisterBase<I2C, 0x26, true, RawType> {
+class PULSE_TMLT {
 public:
+  using RawType = uint8_t;  // Raw type of the register
+  static constexpr bool CAN_WRITE = true;
+  static constexpr uint8_t ADDRESS = 0x26;
+
   static constexpr Field<RawType, RawType, 0xFF, 0> FIRST_PULSE_TIME{};
 };
 
 /**
  * Pulse Latency Timer Register
  *
- * The bits LTCY7 through LTCY0 define the time interval that starts after the first pulse detection. During this time interval, all
- * pulses are ignored. Note: This timer must be set for single pulse and for double pulse.
+ * The bits LTCY7 through LTCY0 define the time interval that starts after the first pulse detection. During this time
+ * interval, all pulses are ignored. Note: This timer must be set for single pulse and for double pulse.
  *
  * The minimum time step for the pulse latency is defined in Table 52 and Table 53 from the datasheet (page 38).
  * The maximum time is the time step at the ODR and Oversampling mode multiplied by 255. The timing also changes when
  * the Pulse LPF is enabled or disabled.
- * @tparam I2C
- * @tparam RawType
  */
-template<typename I2C, typename RawType = uint8_t>
-class PULSE_LTCY : public RegisterBase<I2C, 0x27, true, RawType> {
+class PULSE_LTCY {
 public:
+  using RawType = uint8_t;  // Raw type of the register
+  static constexpr bool CAN_WRITE = true;
+  static constexpr uint8_t ADDRESS = 0x27;
+
   static constexpr Field<RawType, RawType, 0xFF, 0> PULSE_LATENCY{};
 };
 
 /**
  * Second Pulse Time Window Register
  *
- * The bits WIND7 through WIND0 define the maximum interval of time that can elapse after the end of the latency interval in which
- * the start of the second pulse event must be detected provided the device has been configured for double pulse detection. The
- * detected second pulse width must be shorter than the time limit constraints specified by the PULSE_TMLT register, but the end
- * of the double pulse need not finish within the time specified by the PULSE_WIND register.
+ * The bits WIND7 through WIND0 define the maximum interval of time that can elapse after the end of the latency
+ * interval in which the start of the second pulse event must be detected provided the device has been configured for
+ * double pulse detection. The detected second pulse width must be shorter than the time limit constraints specified by
+ * the PULSE_TMLT register, but the end of the double pulse need not finish within the time specified by the PULSE_WIND
+ * register.
  *
  * The minimum time step for the pulse window is defined in Table 55 and Table 56 from the datasheet (page 39).
  * The maximum time is the time step at the ODR, Oversampling mode and LPF Filter Option multiplied by 255.
- * @tparam I2C
- * @tparam RawType
  */
-template<typename I2C, typename RawType = uint8_t>
-class PULSE_WIND : public RegisterBase<I2C, 0x28, true, RawType> {
+class PULSE_WIND {
 public:
+  using RawType = uint8_t;  // Raw type of the register
+  static constexpr bool CAN_WRITE = true;
+  static constexpr uint8_t ADDRESS = 0x28;
+
   static constexpr Field<RawType, RawType, 0xFF, 0> SECOND_PULSE_TIME{};
 };
 
 /**
  * System Control 1 Register
- * @tparam I2C
- * @tparam RawType
  */
-template<typename I2C, typename RawType = uint8_t>
-class CTRL_REG1 : public RegisterBase<I2C, 0x2A, true, RawType> {
+class CTRL_REG1 {
 public:
+  using RawType = uint8_t;  // Raw type of the register
+  static constexpr bool CAN_WRITE = true;
+  static constexpr uint8_t ADDRESS = 0x2A;
+
   enum class Resolution : RawType {
     BITS_14 = 0,
     BITS_8,
@@ -232,10 +217,12 @@ public:
   static constexpr Field<AutoWakeSampleFrequency, RawType, 0xC0, 6> ALSP_RATE{};
 };
 
-
-template<typename I2C, typename RawType = uint8_t>
-class CTRL_REG2 : public RegisterBase<I2C, 0x2B, true, RawType> {
+class CTRL_REG2 {
 public:
+  using RawType = uint8_t;  // Raw type of the register
+  static constexpr bool CAN_WRITE = true;
+  static constexpr uint8_t ADDRESS = 0x2B;
+
   enum class PowerSelection : RawType {
     NORMAL = 0,
     LOW_NOISE_LOW_POWER,
@@ -254,19 +241,15 @@ public:
   static constexpr Field<bool, RawType, 0x80, 7> SELF_TEST_ON{};
 };
 
-
-template<typename I2C, typename RawType = uint8_t>
-class CTRL_REG3 : public RegisterBase<I2C, 0x2C, true, RawType> {
+class CTRL_REG3 {
 public:
-  enum class IntPinMode : RawType {
-    PUSH_PULL = 0,
-    OPEN_DRAIN
-  };
+  using RawType = uint8_t;  // Raw type of the register
+  static constexpr bool CAN_WRITE = true;
+  static constexpr uint8_t ADDRESS = 0x2C;
 
-  enum class IntPolarity : RawType {
-    ACTIVE_LOW = 0,
-    ACTIVE_HIGH
-  };
+  enum class IntPinMode : RawType { PUSH_PULL = 0, OPEN_DRAIN };
+
+  enum class IntPolarity : RawType { ACTIVE_LOW = 0, ACTIVE_HIGH };
 
   static constexpr Field<IntPinMode, RawType, 0x01, 0> INT_PIN_MODE{};
   static constexpr Field<IntPolarity, RawType, 0x02, 1> INT_POLARITY{};
@@ -275,12 +258,14 @@ public:
   static constexpr Field<bool, RawType, 0x20, 5> ORIENTATION_INT_BYPASSED_IN_SLEEP_MODE{};
   static constexpr Field<bool, RawType, 0x40, 6> TRANSIENT_INT_BYPASSED_IN_SLEEP_MODE{};
   static constexpr Field<bool, RawType, 0x80, 7> FIFO_GATE_BYPASSED_IN_SLEEP_MODE{};
-
 };
 
-template<typename I2C, typename RawType = uint8_t>
-class CTRL_REG4 : public RegisterBase<I2C, 0x2D, true, RawType> {
+class CTRL_REG4 {
 public:
+  using RawType = uint8_t;  // Raw type of the register
+  static constexpr bool CAN_WRITE = true;
+  static constexpr uint8_t ADDRESS = 0x2D;
+
   static constexpr Field<bool, RawType, 0x01, 0> DATA_READY_INT_ENABLED{};
   static constexpr Field<bool, RawType, 0x04, 2> FREEFALL_INT_ENABLED{};
   static constexpr Field<bool, RawType, 0x08, 3> PULSE_DETECTION_INT_ENABLED{};
@@ -288,13 +273,15 @@ public:
   static constexpr Field<bool, RawType, 0x20, 5> TRANSIENT_INT_ENABLED{};
   static constexpr Field<bool, RawType, 0x40, 6> FIFO_INT_ENABLED{};
   static constexpr Field<bool, RawType, 0x80, 7> AUTO_SLEEP_WAKE_INT_ENABLED{};
-
 };
 
-template<typename I2C, typename RawType = uint8_t>
-class CTRL_REG5 : public RegisterBase<I2C, 0x2E, true, RawType> {
+class CTRL_REG5 {
 public:
-  enum class IntPin : RawType{
+  using RawType = uint8_t;  // Raw type of the register
+  static constexpr bool CAN_WRITE = true;
+  static constexpr uint8_t ADDRESS = 0x2E;
+
+  enum class IntPin : RawType {
     PIN_INT2 = 0,
     PIN_INT1,
   };
@@ -306,14 +293,8 @@ public:
   static constexpr Field<IntPin, RawType, 0x20, 5> TRANSIENT_INT_PIN{};
   static constexpr Field<IntPin, RawType, 0x40, 6> FIFO_INT_PIN{};
   static constexpr Field<IntPin, RawType, 0x80, 7> AUTO_SLEEP_WAKE_INT_PIN{};
-
 };
-
-
-template<typename I2C, uint8_t NEW_REG_ADDRESS, bool NEW_CAN_WRITE, typename newRawType>
-newRawType RegisterBase<I2C, NEW_REG_ADDRESS, NEW_CAN_WRITE, newRawType>::currentVal=0;
-
-}
-}
+}  // namespace MMA
+}  // namespace AdvancedMicrotech
 
 #endif  // ADVANVED_MICROTECH_MMAREGISTERS_HPP
