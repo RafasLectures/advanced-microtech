@@ -113,8 +113,8 @@ public:
     while (*USCI::CTL1 & UCTXSTP) {
     }
     // Make sure the bus is not busy
-    while (*USCI::STAT & UCBBUSY) {
-    }
+    //while (*USCI::STAT & UCBBUSY) {
+    //}
 
     transferBuffer = txData;  // Assign transfer buffer to the txData pointer
     transferCount = length;   // Get length
