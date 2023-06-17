@@ -112,9 +112,6 @@ public:
     // Before writing, you should always check if the last STOP-condition has already been sent.
     while (*USCI::CTL1 & UCTXSTP) {
     }
-    // Make sure the bus is not busy
-    //while (*USCI::STAT & UCBBUSY) {
-    //}
 
     transferBuffer = txData;  // Assign transfer buffer to the txData pointer
     transferCount = length;   // Get length
