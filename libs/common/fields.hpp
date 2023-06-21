@@ -35,6 +35,8 @@ class Field {
   static_assert(std::numeric_limits<FRAME_TYPE>::digits > position, "Position shift bigger than value coming");
 
 public:
+  using FieldType = FIELD_TYPE;
+  using FrameType = FRAME_TYPE;
   /**
    * Method to decode a field within a frame.
    * @param value The raw value of the frame

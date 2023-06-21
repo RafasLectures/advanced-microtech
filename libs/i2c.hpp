@@ -112,15 +112,13 @@ public:
     // Before writing, you should always check if the last STOP-condition has already been sent.
     while (*USCI::CTL1 & UCTXSTP) {
     }
-    // Make sure the bus is not busy
-    while (*USCI::STAT & UCBBUSY) {
-    }
 
     transferBuffer = txData;  // Assign transfer buffer to the txData pointer
     transferCount = length;   // Get length
     nackReceived = false;     // Initialize NACK variable
 
-    USCI::clear_tx_irq();     // Make sure there is no TX IRQ pending
+    USCI::clear_tx_irq();
+
     // Enable TX and RX interruptions, so we can also get the NACKs.
     // The interruption is responsible to disable it again.
     USCI::enable_rx_tx_irq();
@@ -163,13 +161,22 @@ public:
     // Make sure there are no interruptions pending.
     USCI::clear_tx_irq();
     USCI::clear_rx_irq();
-
+    
     // Enable TX and RX interruptions, so we can also get the NACKs.
     // The interruption is responsible to disable it again.
     USCI::enable_rx_tx_irq();
 
     *USCI::CTL1 &= ~UCTR;    // I2C RX
     *USCI::CTL1 |= UCTXSTT;  // I2C start condition
+
+    // If you only want to receive one byte, you instantly have to write a STOP-condition
+    // after the START-condition got sent.
+    if(length <= 1) {
+        // Wait until start is sent to set the stop
+        while(*USCI::CTL1 & UCTXSTT) {
+        }
+        *USCI::CTL1 |= UCTXSTP;  // I2C stop condition
+    }
 
     // This makes the function a blocking function.
     // Wait until all data has been transfered.
@@ -202,9 +209,7 @@ public:
       *transferBuffer++ = *USCI::RXBUF;
       transferCount--;  // Decrease transferCount, since one more transfer has been done.
 
-      // If you only want to receive one byte, you instantly have to write a STOP-condition
-      // after the START-condition got sent.
-      if (transferCount == 1) {
+      if (transferCount == 1 && !(*USCI::CTL1 & UCTXSTP)) {
         *USCI::CTL1 |= UCTXSTP;  // I2C stop condition
       }
     }

@@ -1,6 +1,11 @@
-Previously I had memory problems because I had the wrong device in my project. I had the msp430g2253 instead of g2553 :)
+Very nice Exercise.
 
-This project was fun to do. It was nice to use the I2C. I had a little problem on the beginning when I had the ScanaStudio
-sampling rate too low, then it seemed that my clock was misconfigured and the decoder of the tool didn't work properly.
-It took me like 2 hours to find out that my code was correct, but my setup to check the implementation was wrong.
+Unfortunately I am having this issue where it doesnt go back to low power mode because every some milliseconds (between 20ms and 150ms, it varies) my readings
+from the Accelerometer are all -64 (clearly an error), but I cannot explain why this happens. I tried to check with the IKA logic, but I cannot trigger
+in the point where this happens. I think it could be something with the I2C, but I couldn't find it yet.
 
+I also didn't understand what it was meant by the bubble... In my head I would have to use the custom characters anyways. But its fine (I could've also checked the
+ilias forum).
+
+Next week I plan to go to the in-person session, maybe I can ask someone there to take a look, or maybe use an oscilloscope with an I2C decoder
+and add the message I want to debug, so I can trigger at that spot. Unfortunately I wasn't able to be there last thursday (15.06) because of work.

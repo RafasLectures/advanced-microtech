@@ -87,16 +87,12 @@ int main(void) {
     uint8_t adcIndex = 0;
     uint8_t line = 0;
     while (adcIndex < ADC_DAC::NUMBER_AD_CHANNELS) {
-      LCD::setCursorPosition(2, line);
-      LCD::writeNumber(adcIndex);
       LCD::setCursorPosition(4, line);
       LCD::writeString("    ");
       LCD::setCursorPosition(4, line);
       LCD::writeNumber(adcValues[adcIndex]);
       adcIndex++;
 
-      LCD::setCursorPosition(10, line);
-      LCD::writeNumber(adcIndex);
       LCD::setCursorPosition(12, line);
       LCD::writeString("    ");
       LCD::setCursorPosition(12, line);
