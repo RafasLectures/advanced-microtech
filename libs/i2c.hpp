@@ -15,15 +15,11 @@
 #include <msp430g2553.h>
 
 #include "common/usci.hpp"
+#include "libs/common/clocks.hpp"
 #include <cassert>
 #include <cstdint>
 
 namespace AdvancedMicrotech {
-
-// Function pointers that are called by the interruptions.
-// They are set in the initialize methods of the I2C.
-extern void (*handleUSCIB0TxIsrFunc)(void);
-extern void (*handleUSCIB0RxIsrFunc)(void);
 
 /**
  * Class implements an abstraction for the I2C peripheral of the MSP430. It provides read and write methods
@@ -37,9 +33,8 @@ extern void (*handleUSCIB0RxIsrFunc)(void);
  */
 template<typename SDA, typename SCL, typename CLOCK, uint32_t BAUDRATE = 100000, const bool IS_MASTER = true>
 class I2C_T {
-public:
   using USCI = USCI_T<USCI_MODULE::USCI_B, 0>;  // Alias to get the USCIB0 registers and enable interruptions.
-
+public:
   /**
    * Initialize the I2C state machine. The speed is 100 kBit/s.
    * @param slaveAddress The 7-bit address of the slave (MSB shall always be 0, i.e. "right alignment").
@@ -57,8 +52,8 @@ public:
     SCL::init();
 
     // Set the interruption function pointers to current class interruption handle functions
-    handleUSCIB0TxIsrFunc = &I2C_T<SDA, SCL, CLOCK, BAUDRATE, IS_MASTER>::handleTxIsr;
-    handleUSCIB0RxIsrFunc = &I2C_T<SDA, SCL, CLOCK, BAUDRATE, IS_MASTER>::handleRxIsr;
+    USCI::i2cTxISRFunction = &I2C_T<SDA, SCL, CLOCK, BAUDRATE, IS_MASTER>::handleTxIsr;
+    USCI::i2cRxISRFunction = &I2C_T<SDA, SCL, CLOCK, BAUDRATE, IS_MASTER>::handleRxIsr;
 
     // Enable SW reset to prevent the operation of USCI.
     // According to the datasheet:
@@ -93,6 +88,7 @@ public:
     transferBuffer = nullptr;
     nackReceived = false;
 
+    USCI::set_i2c_active(true);
     USCI::clear_rx_irq();
     USCI::clear_tx_irq();
     USCI::disable_rx_tx_irq();

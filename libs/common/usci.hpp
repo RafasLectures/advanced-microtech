@@ -10,8 +10,15 @@
 #ifndef LIBS_COMMON_USCI_HPP_
 #define LIBS_COMMON_USCI_HPP_
 
+#include <msp430g2553.h>
 #include <cstdint>
 #include <type_traits>
+
+// Function pointers that are called by the interruptions.
+// They are set in the initialize methods of the I2C.
+extern void (*handleUSCIB0TxIsrFunc)(void);
+extern void (*handleUSCIB0RxIsrFunc)(void);
+
 
 enum USCI_MODULE { USCI_A, USCI_B };
 
@@ -67,6 +74,31 @@ struct USCI_T {
   static constexpr volatile uint16_t *I2COA = USCI_REGISTER<uint16_t, MODULE, INSTANCE, 0>();
   static constexpr volatile uint16_t *I2CSA = USCI_REGISTER<uint16_t, MODULE, INSTANCE, 1>();
 
+  static void (*spiTxISRFunction)(void);
+  static void (*spiRxISRFunction)(void);
+  static void (*i2cTxISRFunction)(void);
+  static void (*i2cRxISRFunction)(void);
+
+  static void set_spi_active(bool spiActive) {
+    if(spiActive) {
+      handleUSCIB0TxIsrFunc = spiTxISRFunction;
+      handleUSCIB0RxIsrFunc = spiRxISRFunction;
+    } else {
+      handleUSCIB0TxIsrFunc = i2cTxISRFunction;
+      handleUSCIB0RxIsrFunc = i2cRxISRFunction;
+    }
+  }
+
+  static void set_i2c_active(bool i2cActive) {
+    if(!i2cActive) {
+      handleUSCIB0TxIsrFunc = spiTxISRFunction;
+      handleUSCIB0RxIsrFunc = spiRxISRFunction;
+    } else {
+      handleUSCIB0TxIsrFunc = i2cTxISRFunction;
+      handleUSCIB0RxIsrFunc = i2cRxISRFunction;
+    }
+  }
+
   static void enable_rx_irq(void) {
     IE2 |= (MODULE == USCI_A ? UCA0RXIE : UCB0RXIE);
   }
@@ -107,5 +139,14 @@ struct USCI_T {
     return (IFG2 & (MODULE == USCI_A ? UCA0RXIFG : UCB0RXIFG));
   }
 };
+
+template<const USCI_MODULE MODULE, const int INSTANCE>
+void (*USCI_T<MODULE, INSTANCE>::spiTxISRFunction)(void) = nullptr;
+template<const USCI_MODULE MODULE, const int INSTANCE>
+void (*USCI_T<MODULE, INSTANCE>::spiRxISRFunction)(void) = nullptr;
+template<const USCI_MODULE MODULE, const int INSTANCE>
+void (*USCI_T<MODULE, INSTANCE>::i2cTxISRFunction)(void) = nullptr;
+template<const USCI_MODULE MODULE, const int INSTANCE>
+void (*USCI_T<MODULE, INSTANCE>::i2cRxISRFunction)(void) = nullptr;
 
 #endif /* LIBS_COMMON_USCI_HPP_ */

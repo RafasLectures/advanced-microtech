@@ -263,7 +263,7 @@ void initMSP(void)
     // Stop Watchdog Timer
     WDTCTL = WDTPW + WDTHOLD;
     // If the calibration constants were erased, stop here.
-    if (CALBC1_1MHZ == 0xFF || CALDCO_1MHZ == 0xFF)
+    if (CALBC1_16MHZ == 0xFF || CALDCO_16MHZ == 0xFF)
     {
         while (1)
             ;
@@ -273,9 +273,9 @@ void initMSP(void)
     // your code during the lab.
     // Possible options: _1 _8 _12 _16. Don't forget to adapt UART if you
     // change this!
-    BCSCTL1 = CALBC1_1MHZ;
+    BCSCTL1 = CALBC1_16MHZ;
     // Set DCO step + modulation
-    DCOCTL = CALDCO_1MHZ;
+    DCOCTL = CALDCO_16MHZ;
 
 #ifndef NO_TEMPLATE_UART
     // Activate UART on 1.1 / 1.2

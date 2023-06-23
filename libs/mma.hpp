@@ -309,6 +309,10 @@ public:
     }
 
     setActiveMode(true);
+    uint8_t dataAvailable = 0;
+    while(!(dataAvailable & 0x08)) {
+      readRegister(0x00, 1, &dataAvailable);
+    }
 
     readRegister(X_MSB_REG_ADDRESS, bufferSize, &readBuffer[0]);
     memset(&xRaw[0], 0, sizeof(xRaw));
