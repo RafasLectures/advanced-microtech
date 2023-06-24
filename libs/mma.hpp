@@ -310,7 +310,7 @@ public:
 
     setActiveMode(true);
     uint8_t dataAvailable = 0;
-    while(!(dataAvailable & 0x08)) {
+    while (!(dataAvailable & 0x08)) {
       readRegister(0x00, 1, &dataAvailable);
     }
 

@@ -19,7 +19,6 @@
 extern void (*handleUSCIB0TxIsrFunc)(void);
 extern void (*handleUSCIB0RxIsrFunc)(void);
 
-
 enum USCI_MODULE { USCI_A, USCI_B };
 
 static constexpr volatile uint8_t *usci_a_registers[][9] = {
@@ -80,7 +79,7 @@ struct USCI_T {
   static void (*i2cRxISRFunction)(void);
 
   static void set_spi_active(bool spiActive) {
-    if(spiActive) {
+    if (spiActive) {
       handleUSCIB0TxIsrFunc = spiTxISRFunction;
       handleUSCIB0RxIsrFunc = spiRxISRFunction;
     } else {
@@ -90,7 +89,7 @@ struct USCI_T {
   }
 
   static void set_i2c_active(bool i2cActive) {
-    if(!i2cActive) {
+    if (!i2cActive) {
       handleUSCIB0TxIsrFunc = spiTxISRFunction;
       handleUSCIB0RxIsrFunc = spiRxISRFunction;
     } else {

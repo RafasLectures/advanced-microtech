@@ -157,7 +157,7 @@ public:
     // Make sure there are no interruptions pending.
     USCI::clear_tx_irq();
     USCI::clear_rx_irq();
-    
+
     // Enable TX and RX interruptions, so we can also get the NACKs.
     // The interruption is responsible to disable it again.
     USCI::enable_rx_tx_irq();
@@ -167,11 +167,11 @@ public:
 
     // If you only want to receive one byte, you instantly have to write a STOP-condition
     // after the START-condition got sent.
-    if(length <= 1) {
-        // Wait until start is sent to set the stop
-        while(*USCI::CTL1 & UCTXSTT) {
-        }
-        *USCI::CTL1 |= UCTXSTP;  // I2C stop condition
+    if (length <= 1) {
+      // Wait until start is sent to set the stop
+      while (*USCI::CTL1 & UCTXSTT) {
+      }
+      *USCI::CTL1 |= UCTXSTP;  // I2C stop condition
     }
 
     // This makes the function a blocking function.
@@ -233,24 +233,6 @@ uint8_t* I2C_T<SDA, SCL, CLOCK, BAUDRATE, IS_MASTER>::transferBuffer;
 
 template<typename SDA, typename SCL, typename CLOCK, uint32_t BAUDRATE, const bool IS_MASTER>
 bool I2C_T<SDA, SCL, CLOCK, BAUDRATE, IS_MASTER>::nackReceived;
-
-/******************************************************************************
- * FUNCTION PROTOTYPES
- *****************************************************************************/
-
-#if 0
-// Initialize the I2C state machine. The speed should be 100 kBit/s.
-// <addr> is the 7-bit address of the slave (MSB shall always be 0, i.e. "right alignment"). (2 pts.)
-void i2c_init (unsigned char addr);
-
-// Write a sequence of <length> characters from the pointer <txData>.
-// Return 0 if the sequence was acknowledged, 1 if not. Also stop transmitting further bytes upon a missing acknowledge.
-// Only send a stop condition if <stop> is not 0. (2 pts.)
-unsigned char i2c_write(unsigned char length, unsigned char * txData, unsigned char stop);
-
-// Returns the next <length> characters from the I2C interface. (2 pts.)
-void i2c_read(unsigned char length, unsigned char * rxData);
-#endif
 
 }  // namespace AdvancedMicrotech
 #endif /* EXERCISE_LIBS_I2C_H_ */

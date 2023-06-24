@@ -19,7 +19,7 @@
 
 namespace AdvancedMicrotech {
 
-template< typename MOSI, typename MISO, typename SCLK, typename CLOCK, typename BUS_SELECTION,
+template<typename MOSI, typename MISO, typename SCLK, typename CLOCK, typename BUS_SELECTION,
          const uint32_t BAUDRATE = 1000000, const bool MASTER = true, const bool MSB = true>
 class SPI_T {
   using USCI = USCI_T<USCI_MODULE::USCI_B, 0>;  // Alias to get the USCIB0 registers and enable interruptions.
@@ -35,13 +35,13 @@ public:
     SCLK::init();
     BUS_SELECTION::init();
     BUS_SELECTION::set_low();
-    delay_ms(1);        // Added delay to make sure IO levels have settled
+    delay_ms(1);  // Added delay to make sure IO levels have settled
 
     *USCI::CTL1 |= UCSWRST;
 
     // As can be seen in USCI_T, if we use USCI_A, we have MCTL, otherwise not, therefore the check.
     // But this is done in compile time, therefore, there is no overhead.
-    if(USCI::MCTL != nullptr) {
+    if (USCI::MCTL != nullptr) {
       *USCI::MCTL = 0;
     }
 
@@ -51,8 +51,7 @@ public:
     // Calculate in compile time the value from the register based on the frequency of the clock and the
     // desired baud rate.
     constexpr uint16_t BITCLOCK = (CLOCK::frequency / BAUDRATE);
-    static_assert(BITCLOCK <= CLOCK::frequency,
-                  "According to page 469 of TIs SLAU144K, BITCLOCK can be up to BRCLK");
+    static_assert(BITCLOCK <= CLOCK::frequency, "According to page 469 of TIs SLAU144K, BITCLOCK can be up to BRCLK");
     *USCI::BR0 = BITCLOCK & 0xff;
     *USCI::BR1 = BITCLOCK >> 8;
 
@@ -81,20 +80,20 @@ public:
    *
    * (1 pt.)
    */
-  static constexpr void read(uint8_t length, uint8_t *data) {
-    while(busy()) {
+  static constexpr void read(uint8_t length, uint8_t* data) {
+    while (busy()) {
     }
     transferCount = length;
     transferBuffer = data;
 
     USCI::clear_rx_irq();
     USCI::enable_rx_irq();
-    *USCI::TXBUF = 0xFF; // Write dummy data to generate clock output
+    *USCI::TXBUF = 0xFF;  // Write dummy data to generate clock output
     while (transferCount > 0) {
     }
     USCI::disable_rx_tx_irq();
     transferBuffer = nullptr;
-    while(busy()) {
+    while (busy()) {
     }
   }
 
@@ -105,8 +104,8 @@ public:
    *
    * (1 pt.)
    */
-  static constexpr void write(uint8_t length, uint8_t *data) {
-    while(busy()) {
+  static constexpr void write(uint8_t length, uint8_t* data) {
+    while (busy()) {
     }
     transferCount = length;
     transferBuffer = data;
@@ -116,7 +115,7 @@ public:
     }
     USCI::disable_rx_tx_irq();
     transferBuffer = nullptr;
-    while(busy()) {
+    while (busy()) {
     }
   }
 
@@ -137,7 +136,7 @@ private:
     }
 
     // The UCx0TXIFG is set when TXBUF is empty, so there has been a TX transfer
-    while(!USCI::tx_irq_pending()) {
+    while (!USCI::tx_irq_pending()) {
     }
     // Put current value of transferBuffer and point to the next transferBuffer position.
     *USCI::TXBUF = *transferBuffer++;
@@ -146,24 +145,23 @@ private:
 
   static void handleRxIsr() {
     if (transferCount == 0) {
-
       return;
     }
-    while(!USCI::rx_irq_pending()) {
+    while (!USCI::rx_irq_pending()) {
     }
     // The UCx0RXIFG is set when RXBUF has received a complete character, so there has been a RX transfer
     // Put current value from RXBUF to transferBuffer and point to the next transferBuffer position.
     *transferBuffer++ = *USCI::RXBUF;
     transferCount--;  // Decrease transferCount, since one more transfer has been done.
-    if(transferCount == 0) {
-        // If the transfer count is 0, it means we already the transfer has been completed,
-        // so we just disable the interruption and do an early return.
-        USCI::disable_rx_irq();
+    if (transferCount == 0) {
+      // If the transfer count is 0, it means we already the transfer has been completed,
+      // so we just disable the interruption and do an early return.
+      USCI::disable_rx_irq();
     } else {
-        // Writes dummy data to get more clock
-        while(!USCI::tx_irq_pending()) {
-        }
-        *USCI::TXBUF = 0xFF; // Write dummy data to generate clock output
+      // Writes dummy data to get more clock
+      while (!USCI::tx_irq_pending()) {
+      }
+      *USCI::TXBUF = 0xFF;  // Write dummy data to generate clock output
     }
     USCI::clear_rx_irq();
   }
@@ -172,18 +170,12 @@ private:
   static uint8_t* transferBuffer;  // Pointer to where to write/get the received/send data
 };
 
-template<typename MOSI, typename MISO, typename SCLK, typename CLOCK, typename BUS_SELECTION,
-  const uint32_t BAUDRATE, const bool MASTER, const bool MSB>
+template<typename MOSI, typename MISO, typename SCLK, typename CLOCK, typename BUS_SELECTION, const uint32_t BAUDRATE,
+         const bool MASTER, const bool MSB>
 uint8_t SPI_T<MOSI, MISO, SCLK, CLOCK, BUS_SELECTION, BAUDRATE, MASTER, MSB>::transferCount = 0;
-template<typename MOSI, typename MISO, typename SCLK, typename CLOCK, typename BUS_SELECTION,
-         const uint32_t BAUDRATE, const bool MASTER, const bool MSB>
+template<typename MOSI, typename MISO, typename SCLK, typename CLOCK, typename BUS_SELECTION, const uint32_t BAUDRATE,
+         const bool MASTER, const bool MSB>
 uint8_t* SPI_T<MOSI, MISO, SCLK, CLOCK, BUS_SELECTION, BAUDRATE, MASTER, MSB>::transferBuffer = 0;
-}
-// Interrupt service routines in your spi.c (1 pt.)
-
-// Returns 1 if the SPI is still busy or 0 if not.
-// Note: this is optional. You will most likely need this, but you don't have
-// to implement or use this.
-unsigned char spi_busy(void);
+}  // namespace AdvancedMicrotech
 
 #endif /* LIBS_SPI_H_ */

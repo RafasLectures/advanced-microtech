@@ -62,7 +62,11 @@ int main(void) {
     I2C_SPI::init();
     FLASH::init();
 
-
+    //uint8_t someData[]{*"S", *"o", *"m", *"e"};
+    //uint8_t* someData = (uint8_t*)"Some";
+    uint8_t someData[5]{0};
+    FLASH::read(0x1F0000, 5, someData);
+    LCD::writeString((const char*)someData);
     while (1) {
         // TODO: Add your main program here.
     }

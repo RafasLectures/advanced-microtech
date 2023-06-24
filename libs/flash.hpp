@@ -14,13 +14,13 @@
 #define LIBS_FLASH_H_
 
 #include "spi.hpp"
+namespace AdvancedMicrotech {
 
 template<typename CS, typename HOLD, typename WP, typename SPI>
 class FLASH_T {
 public:
-
   /**
-   * Initialise the flash chip
+   * Initialize the flash chip
    */
   static constexpr void init() {
     CS::init();
@@ -35,8 +35,8 @@ public:
     SPI::read(3, &ID[0]);
     CS::set_high();
 
-    if(ID[0] != 0x20) {
-      while(1) {
+    if (ID[0] != 0x20) {
+      while (1) {
         __no_operation();
       }
     }
@@ -44,24 +44,78 @@ public:
   }
 
   static constexpr void read(uint32_t address, uint16_t length, uint8_t* data) {
-    CS::set_low();
-    uint8_t addressBuffer[3] = {static_cast<uint8_t>(address << 16), static_cast<uint8_t>(address << 8), static_cast<uint8_t>(address)};
-    SPI::write(3,&addressBuffer[0]);
+    waitUntilNotBusy();
+    sendInstructionToAddress(address, READ_DATA, false);
     SPI::read(length, data);
     CS::set_high();
   }
 
-  static constexpr void write(uint16_t address, uint16_t length, uint8_t* data) {
-    CS::set_low();
-    uint8_t addressBuffer[3] = {static_cast<uint8_t>(address << 16), static_cast<uint8_t>(address << 8), static_cast<uint8_t>(address)};
-    SPI::write(3,&addressBuffer[0]);
+  static constexpr void write(uint32_t address, uint16_t length, uint8_t* data) {
+    waitUntilNotBusy();
+    sendInstructionToAddress(address, SECTOR_ERASE, true);
+    sendInstruction(WRITE_ENABLE, true);
+    waitUntilNotBusy();
+    sendInstructionToAddress(address, PAGE_PROGRAM, false);
     SPI::write(length, data);
     CS::set_high();
   }
-private:
 
+private:
+  struct StatusRegister {
+    uint8_t busy;
+    uint8_t writeEnabled;
+  };
+  static constexpr StatusRegister readStatusRegister() {
+    constexpr uint8_t BUSY_MASK = 0x01;
+    constexpr uint8_t WRITE_ENABLED_MASK = 0x02;
+    uint8_t status = 0;
+    sendInstruction(READ_STATUS_REGISTER, false);
+    SPI::read(sizeof(status), &status);
+    CS::set_high();
+    //StatusRegister retVal;
+    //retVal.busy = status & BUSY_MASK;
+    //retVal.writeEnabled = status & WRITE_ENABLED_MASK;
+    return {status & BUSY_MASK, status & WRITE_ENABLED_MASK};
+  }
+
+
+  static constexpr void sendInstruction(uint8_t instruction, bool finalMessage) {
+    CS::set_low();
+    SPI::write(1, &instruction);
+    if(finalMessage) {
+      CS::set_high();
+    }
+  }
+
+  static constexpr void sendInstructionToAddress(uint32_t address, uint8_t instruction, bool finalMessage) {
+      uint8_t instructionAndAddress[4] = {instruction, static_cast<uint8_t>((address & 0xFF0000) >> 16), static_cast<uint8_t>((address & 0x00FF00) >> 8),
+                                         static_cast<uint8_t>((address & 0xFF))};
+     CS::set_low();
+     SPI::write(sizeof(instructionAndAddress), &instructionAndAddress[0]);
+     if(finalMessage) {
+         CS::set_high();
+     }
+  }
+
+  static constexpr void waitUntilNotBusy() {
+    StatusRegister statusRegister = readStatusRegister();
+    while(statusRegister.busy) {
+      statusRegister = readStatusRegister();
+    }
+  }
+  static constexpr uint8_t WRITE_ENABLE{0x06};
+  static constexpr uint8_t WRITE_DISABLE{0x04};
+  static constexpr uint8_t READ_ID{0x9F};
+  static constexpr uint8_t READ_STATUS_REGISTER{0x05};
+  static constexpr uint8_t WRITE_STATUS_REGISTER{0x01};
+  static constexpr uint8_t READ_DATA{0x03};
+  static constexpr uint8_t READ_DATA_FAST{0x0B};
+  static constexpr uint8_t PAGE_PROGRAM{0x02};
+  static constexpr uint8_t SECTOR_ERASE{0xD8};
+  static constexpr uint8_t BULK_ERASE{0xC7};
 };
 
+}
 // Read <length> bytes into <rxData> starting from address <address> (1 pt.)
 void flash_read(long int address, unsigned char length, unsigned char * rxData);
 
