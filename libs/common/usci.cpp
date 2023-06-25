@@ -1,3 +1,13 @@
+/******************************************************************************
+* @file                    usci.cpp
+* @author                  Rafael Andrioli Bauer
+* @date                    24.05.2023
+* @matriculation number    5163344
+* @e-mail contact          abauer.rafael@gmail.com
+* @brief                   Implementation with the ISRs from USCI
+*
+******************************************************************************/
+
 #include "usci.hpp"
 // Function pointers to be called by the interruptions
 void (*handleUSCIB0TxIsrFunc)(void);

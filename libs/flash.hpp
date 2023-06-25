@@ -49,35 +49,42 @@ public:
     sendInstructionToAddress(address, READ_DATA, false);
     SPI::read(length, data);
     CS::set_high();
+    delay_us(10);
   }
 
   static constexpr void write(uint32_t address, uint16_t length, uint8_t* data) {
-    waitUntilNotBusy();
-    sendInstructionToAddress(address, SECTOR_ERASE, true);
+    sectorErase(address);
     waitUntilNotBusy();
     sendInstruction(WRITE_ENABLE, true);
     waitUntilNotBusy();
     sendInstructionToAddress(address, PAGE_PROGRAM, false);
     SPI::write(length, data);
     CS::set_high();
+    delay_us(10);
+  }
+
+  static constexpr void sectorErase(uint32_t address) {
+    sendInstruction(WRITE_ENABLE, true);
+    waitUntilNotBusy();
+    sendInstructionToAddress(address, SECTOR_ERASE, true);
   }
 
 private:
   struct StatusRegister {
-    uint8_t busy;
-    uint8_t writeEnabled;
+    StatusRegister(bool newBusy, bool newWriteEnabled) : busy(newBusy), writeEnabled(newWriteEnabled) {}
+    bool busy;
+    bool writeEnabled;
   };
   static constexpr StatusRegister readStatusRegister() {
     constexpr uint8_t BUSY_MASK = 0x01;
     constexpr uint8_t WRITE_ENABLED_MASK = 0x02;
     uint8_t status = 0;
     sendInstruction(READ_STATUS_REGISTER, false);
-    SPI::read(sizeof(status), &status);
+    SPI::read(1, &status);
     CS::set_high();
-    // StatusRegister retVal;
-    // retVal.busy = status & BUSY_MASK;
-    // retVal.writeEnabled = status & WRITE_ENABLED_MASK;
-    return {status & BUSY_MASK, status & WRITE_ENABLED_MASK};
+    delay_us(10);
+
+    return StatusRegister(status & BUSY_MASK, status & WRITE_ENABLED_MASK);
   }
 
   static constexpr void sendInstruction(uint8_t instruction, bool finalMessage) {
@@ -85,6 +92,7 @@ private:
     SPI::write(1, &instruction);
     if (finalMessage) {
       CS::set_high();
+      delay_us(10);
     }
   }
 
@@ -96,6 +104,7 @@ private:
     SPI::write(sizeof(instructionAndAddress), &instructionAndAddress[0]);
     if (finalMessage) {
       CS::set_high();
+      delay_us(10);
     }
   }
 

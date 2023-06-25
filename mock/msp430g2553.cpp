@@ -22,6 +22,15 @@ DECLARE_8BIT_REGISTER(P2SEL2, 0)
 DECLARE_8BIT_REGISTER(P2IE, 0)
 DECLARE_8BIT_REGISTER(P2IES, 0)
 DECLARE_8BIT_REGISTER(P2IFG, 0)
+DECLARE_8BIT_REGISTER(P3DIR, 0)
+DECLARE_8BIT_REGISTER(P3IN, 0)
+DECLARE_8BIT_REGISTER(P3OUT, 0)
+DECLARE_8BIT_REGISTER(P3REN, 0)
+DECLARE_8BIT_REGISTER(P3SEL, 0)
+DECLARE_8BIT_REGISTER(P3SEL2, 0)
+DECLARE_8BIT_REGISTER(P3IE, 0)
+DECLARE_8BIT_REGISTER(P3IES, 0)
+DECLARE_8BIT_REGISTER(P3IFG, 0)
 DECLARE_16BIT_REGISTER(TA0CCR0, 0)
 DECLARE_16BIT_REGISTER(TA0CCTL0, 0)
 DECLARE_16BIT_REGISTER(TA0CTL, 0)
@@ -33,5 +42,35 @@ DECLARE_16BIT_REGISTER(ADC10CTL0,0)
 DECLARE_16BIT_REGISTER(ADC10CTL1,0)
 DECLARE_16BIT_REGISTER(ADC10MEM,0)
 DECLARE_16BIT_REGISTER(ADC10SA,0)
+
+DECLARE_8BIT_REGISTER(UCB0CTL0,0);                           /* USCI B0 Control Register 0 */
+DECLARE_8BIT_REGISTER(UCB0CTL1,0);                           /* USCI B0 Control Register 1 */
+DECLARE_8BIT_REGISTER(UCB0BR0,0);                            /* USCI B0 Baud Rate 0 */
+DECLARE_8BIT_REGISTER(UCB0BR1,0);                            /* USCI B0 Baud Rate 1 */
+DECLARE_8BIT_REGISTER(UCB0I2CIE,0);                          /* USCI B0 I2C Interrupt Enable Register */
+DECLARE_8BIT_REGISTER(UCB0STAT,0);                           /* USCI B0 Status Register */
+DECLARE_8BIT_REGISTER(UCB0RXBUF,0);                          /* USCI B0 Receive Buffer */
+DECLARE_8BIT_REGISTER(UCB0TXBUF,0);                          /* USCI B0 Transmit Buffer */
+DECLARE_16BIT_REGISTER(UCB0I2COA,0);                         /* USCI B0 I2C Own Address */
+DECLARE_16BIT_REGISTER(UCB0I2CSA,0);                         /* USCI B0 I2C Slave Address */
+
+DECLARE_8BIT_REGISTER(IFG2, 0);
+DECLARE_8BIT_REGISTER(IE2, 0);
+
+DECLARE_8BIT_REGISTER(DCOCTL,0);                             /* DCO Clock Frequency Control */
+DECLARE_8BIT_REGISTER(BCSCTL1,0);                            /* Basic Clock System Control 1 */
+DECLARE_8BIT_REGISTER(BCSCTL2,0);                            /* Basic Clock System Control 2 */
+DECLARE_8BIT_REGISTER(BCSCTL3,0);                            /* Basic Clock System Control 3 */
+
+DECLARE_16BIT_REGISTER(WDTCTL,0);                            /* Watchdog Timer Control */
+
+DECLARE_8BIT_REGISTER(CALDCO_16MHZ,0);                       /* DCOCTL  Calibration Data for 16MHz */
+DECLARE_8BIT_REGISTER(CALBC1_16MHZ,0);                       /* BCSCTL1 Calibration Data for 16MHz */
+DECLARE_8BIT_REGISTER(CALDCO_12MHZ,0);                       /* DCOCTL  Calibration Data for 12MHz */
+DECLARE_8BIT_REGISTER(CALBC1_12MHZ,0);                       /* BCSCTL1 Calibration Data for 12MHz */
+DECLARE_8BIT_REGISTER(CALDCO_8MHZ,0);                        /* DCOCTL  Calibration Data for 8MHz */
+DECLARE_8BIT_REGISTER(CALBC1_8MHZ,0);                        /* BCSCTL1 Calibration Data for 8MHz */
+DECLARE_8BIT_REGISTER(CALDCO_1MHZ,0);                        /* DCOCTL  Calibration Data for 1MHz */
+DECLARE_8BIT_REGISTER(CALBC1_1MHZ,0);                        /* BCSCTL1 Calibration Data for 1MHz */
 
 

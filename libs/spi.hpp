@@ -36,6 +36,9 @@ public:
     BUS_SELECTION::init();
     BUS_SELECTION::set_low();
     delay_ms(1);  // Added delay to make sure IO levels have settled
+    // Set the interruption function pointers to current class interruption handle functions
+    USCI::spiTxISRFunction = &SPI_T<MOSI, MISO, SCLK, CLOCK, BUS_SELECTION, BAUDRATE, MASTER, MSB>::handleTxIsr;
+    USCI::spiRxISRFunction = &SPI_T<MOSI, MISO, SCLK, CLOCK, BUS_SELECTION, BAUDRATE, MASTER, MSB>::handleRxIsr;
 
     *USCI::CTL1 |= UCSWRST;
 
@@ -66,11 +69,15 @@ public:
     // Make sure loopback is disabled
     *USCI::STAT = 0x00;
 
-    *USCI::CTL1 &= ~UCSWRST;  // Release SW reset so USCI is operational
-
-    USCI::spiTxISRFunction = &SPI_T<MOSI, MISO, SCLK, CLOCK, BUS_SELECTION, BAUDRATE, MASTER, MSB>::handleTxIsr;
-    USCI::spiRxISRFunction = &SPI_T<MOSI, MISO, SCLK, CLOCK, BUS_SELECTION, BAUDRATE, MASTER, MSB>::handleRxIsr;
     USCI::set_spi_active(true);
+    transferCount = 0;
+    transferBuffer = nullptr;
+
+    USCI::clear_rx_irq();
+    USCI::clear_tx_irq();
+    USCI::disable_rx_tx_irq();
+
+    *USCI::CTL1 &= ~UCSWRST;  // Release SW reset so USCI is operational
   }
 
   /**
@@ -87,14 +94,20 @@ public:
     transferBuffer = data;
 
     USCI::clear_rx_irq();
+    USCI::disable_rx_tx_irq();
     USCI::enable_rx_irq();
+    while (!USCI::tx_irq_pending()) {
+    }
     *USCI::TXBUF = 0xFF;  // Write dummy data to generate clock output
     while (transferCount > 0) {
     }
-    USCI::disable_rx_tx_irq();
-    transferBuffer = nullptr;
+    //while (!USCI::rx_irq_pending()) {
+    //}
     while (busy()) {
     }
+    USCI::disable_rx_tx_irq();
+    transferBuffer = nullptr;
+
   }
 
   /**
@@ -134,8 +147,7 @@ private:
       USCI::disable_tx_irq();
       return;
     }
-
-    // The UCx0TXIFG is set when TXBUF is empty, so there has been a TX transfer
+    // The UCx0TXIFG is set when TXBUF is ready to receive the next data
     while (!USCI::tx_irq_pending()) {
     }
     // Put current value of transferBuffer and point to the next transferBuffer position.
@@ -144,8 +156,10 @@ private:
   }
 
   static void handleRxIsr() {
+
     if (transferCount == 0) {
-      return;
+        USCI::clear_rx_irq();
+        return;
     }
     while (!USCI::rx_irq_pending()) {
     }
@@ -166,16 +180,17 @@ private:
     USCI::clear_rx_irq();
   }
 
-  static uint8_t transferCount;    // Variable used to know how many bytes are left to be transferred.
-  static uint8_t* transferBuffer;  // Pointer to where to write/get the received/send data
+  static volatile uint8_t transferCount;    // Variable used to know how many bytes are left to be transferred.
+  static volatile uint8_t* transferBuffer;  // Pointer to where to write/get the received/send data
 };
+
 
 template<typename MOSI, typename MISO, typename SCLK, typename CLOCK, typename BUS_SELECTION, const uint32_t BAUDRATE,
          const bool MASTER, const bool MSB>
-uint8_t SPI_T<MOSI, MISO, SCLK, CLOCK, BUS_SELECTION, BAUDRATE, MASTER, MSB>::transferCount = 0;
+volatile uint8_t SPI_T<MOSI, MISO, SCLK, CLOCK, BUS_SELECTION, BAUDRATE, MASTER, MSB>::transferCount = 0;
 template<typename MOSI, typename MISO, typename SCLK, typename CLOCK, typename BUS_SELECTION, const uint32_t BAUDRATE,
          const bool MASTER, const bool MSB>
-uint8_t* SPI_T<MOSI, MISO, SCLK, CLOCK, BUS_SELECTION, BAUDRATE, MASTER, MSB>::transferBuffer = 0;
+volatile uint8_t* SPI_T<MOSI, MISO, SCLK, CLOCK, BUS_SELECTION, BAUDRATE, MASTER, MSB>::transferBuffer = 0;
 }  // namespace AdvancedMicrotech
 
 #endif /* LIBS_SPI_H_ */
