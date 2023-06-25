@@ -1,15 +1,29 @@
-/***************************************************************************//**
- * @file    main.c
- * @author  <your name>
- * @date    <date of creation>
+/******************************************************************************
+ * @file    main.cpp
+ * @author  Rafael Andrioli Bauer
+ * @date    23.06.2023
  *
  * @brief   Exercise 4 - SPI
  *
- * Description and pin connections go here.
+ * Pin connections: CON5:D4-CON5:D7 <-> CON3:P2.0-CON3:P2.3
+ *                  CON5:RS <-> CON4:P3.0
+ *                  CON5:RW <-> CON4:P3.1
+ *                  CON5:E <-> CON4:P3.2
+ *                  CON6:I2C_SPI <-> CON2:P1.3
+ *                  CON6:XSCL <-> CON2:P1.6
+ *                  CON6:XSDA <-> CON2:P1.7
+ *                  CON6:UDAC <-> CON5:BCKL
+ *                  JP2:BKL_ON
+ *                  CON3:P3:6 <-> X1:Buzzer
+ *                  CON6:MMA_INT1 <-> CON2:P1.4
+ *                  TODO put connections
  *
- * @note    The project was exported using CCS 12.3.0
+ * @note    The project was exported using CCS 12.3.0.
+ *          UART is disabled within templateEMP.h in order to avoid
+ *          interference with your I2C routine!
  *
  ******************************************************************************/
+
 #define NO_TEMPLATE_UART
 
 #include "libs/LCD.hpp"
@@ -64,9 +78,13 @@ static constexpr uint32_t FLASH_ADDRESS = 0x01;
 
 LcdCustomCharacter arrowUpDown{{0x04, 0x0E, 0x15, 0x04, 0x04, 0x15, 0x0E, 0x04}, 0x00};
 LcdCustomCharacter enter{{0x01, 0x01, 0x01, 0x05, 0x09, 0x1F, 0x08, 0x04}, 0x01};
+
 Joystick joystick;
 StringBuilder<WELCOME_MESSAGE_SIZE> welcomeMessage;
 
+/**
+ * Function to print the line with the instructions
+ */
 void printInstructionsLine() {
   LCD::writeChar(arrowUpDown.address); // UP
   LCD::writeString("Sel ");
@@ -77,6 +95,9 @@ void printInstructionsLine() {
   LCD::writeString("Save");
 }
 
+/**
+ * Function to prepare the welcome message to edit.
+ */
 void prepareStringEdit() {
     LCD::clearDisplay();
     printInstructionsLine();
@@ -86,26 +107,41 @@ void prepareStringEdit() {
     LCD::blinkCursor(true);
 }
 
+/**
+ * Function that handles the joystick up event.
+ */
 void upEventCallback() {
   LCD::writeChar(welcomeMessage.setPreviousCharacter());
   LCD::setCursorPosition(welcomeMessage.getCurrentPosition(), 1);
 }
 
+/**
+ * Function that handles the joystick down event.
+ */
 void downEventCallback() {
   LCD::writeChar(welcomeMessage.setNextCharacter());
   LCD::setCursorPosition(welcomeMessage.getCurrentPosition(), 1);
 }
 
+/**
+ * Function that handles the joystick left event.
+ */
 void leftEventCallback() {
   welcomeMessage.previousPosition();
   LCD::setCursorPosition(welcomeMessage.getCurrentPosition(), 1);
 }
 
+/**
+ * Function that handles the joystick right event.
+ */
 void rightEventCallback() {
   welcomeMessage.nextPosition();
   LCD::setCursorPosition(welcomeMessage.getCurrentPosition(), 1);
 }
 
+/**
+ * Function that handles the event when the joystick gets pressed.
+ */
 void pressEventCallback() {
   FLASH::init();
   FLASH::write(FLASH_ADDRESS, welcomeMessage.getBufferSize(), welcomeMessage.getBuffer());
@@ -121,6 +157,7 @@ void pressEventCallback() {
       break;
     }
   }
+	// If the write to flash was successful, show message
   if(savedSuccessfully) {
     LCD::blinkCursor(false);
     LCD::setCursorPosition(0, 1);
