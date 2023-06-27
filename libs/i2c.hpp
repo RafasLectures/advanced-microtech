@@ -48,6 +48,11 @@ public:
       assert(false);
       return;
     }
+
+    // Make sure the bus is not being used by another instance before change it to I2C mode.
+    while(*USCI::STAT & UCBBUSY) {
+    }
+
     // Initialize the IOs
     SDA::init();
     SCL::init();
@@ -135,7 +140,10 @@ public:
     if (stop) {
       *USCI::CTL1 |= UCTXSTP;  // I2C stop condition
     }
-
+    // Just to make sure the STOP condition has been sent.
+    // I cannot understand why I am having to put it here... I couldn't make it work without it.
+    // TODO try to remove this.
+    delay_us(500);
     // Reset internal variables and return if there were any NACKs.
     transferBuffer = nullptr;
     transferCount = 0;
@@ -181,7 +189,7 @@ public:
     }
 
     // This makes the function a blocking function.
-    // Wait until all data has been transfered.
+    // Wait until all data has been transferred.
     while (transferCount > 0) {
     }
 
