@@ -16,7 +16,13 @@
  *                  JP2:BKL_ON
  *                  CON3:P3:6 <-> X1:Buzzer
  *                  CON6:MMA_INT1 <-> CON2:P1.4
- *                  TODO put connections
+ *                  CON2:P1.5 <-> CON6:CC_CLK
+ *                  CON6:CC_SO <-> CON9:F_SO
+ *                  CON6:CC_SI <-> CON9:F_SI
+ *                  CON6:CC_CLK <-> CON9:F_CLK
+ *                  CON4:P3.4 <-> CON9:F_/CS
+ *                  CON4:P3.3 <-> CON9:F_/HOLD
+ *                  CON4:P3.5 <-> CON9:F_/WP
  *
  * @note    The project was exported using CCS 12.3.0.
  *          UART is disabled within templateEMP.h in order to avoid
@@ -61,7 +67,7 @@ typedef GPIO_OUTPUT_T<1, 3, LOW> I2C_SPI;  // Pin P1.3 as output and initial val
 typedef GPIO_MODULE_T<1, 5, 3> SCLK;       // Setting P1.5 as its function 3 (SCLK)
 typedef GPIO_MODULE_T<1, 6, 3> SCL_MISO;   // Setting P1.6 as its function 3 (SCL/MISO)
 typedef GPIO_MODULE_T<1, 7, 3> SDA_MOSI;   // Setting P1.7 as its function 3 (SDA/MOSI)
-typedef SPI_T<SDA_MOSI,SCL_MISO, SCLK, SMCLK, I2C_SPI, 100000> SPI;         // Create SPI and set the CS, MOSI, MISO and SCLK pins. SMCLK is set as clock source.
+typedef SPI_T<SDA_MOSI,SCL_MISO, SCLK, SMCLK, I2C_SPI> SPI;         // Create SPI and set the CS, MOSI, MISO and SCLK pins. SMCLK is set as clock source.
 typedef I2C_T<SDA_MOSI, SCL_MISO, SMCLK, I2C_SPI> I2C;         // Create I2C and set the SDA and SCL pins. SMCLK is set as clock source.
 
 // ============ ADC ===========
@@ -73,30 +79,34 @@ typedef GPIO_OUTPUT_T<3, 4, HIGH> CS;      // Setting P3.4 as output and initial
 typedef GPIO_OUTPUT_T<3, 5, HIGH> WP;      // Setting P3.4 as output and initial value is 1
 typedef FLASH_T<CS, HOLD, WP, SPI> FLASH;
 
-static constexpr uint8_t WELCOME_MESSAGE_SIZE = 16;
-static constexpr uint32_t FLASH_ADDRESS = 0x01;
+static constexpr uint8_t WELCOME_MESSAGE_SIZE = 17;   // Size of the welcome message + null terminator
+static constexpr uint32_t FLASH_ADDRESS = 0x00;       // Address to read/store the welcome message
 
-LcdCustomCharacter arrowUpDown{{0x04, 0x0E, 0x15, 0x04, 0x04, 0x15, 0x0E, 0x04}, 0x00};
-LcdCustomCharacter enter{{0x01, 0x01, 0x01, 0x05, 0x09, 0x1F, 0x08, 0x04}, 0x01};
+// Custom LCD characters
+constexpr LcdCustomCharacter ARROW_UP_DOWN{{0x04, 0x0E, 0x15, 0x04, 0x04, 0x15, 0x0E, 0x04}, 0x00};
+constexpr LcdCustomCharacter ENTER{{0x01, 0x01, 0x01, 0x05, 0x09, 0x1F, 0x08, 0x04}, 0x01};
 
+// Instantiation of welcome message and joystick classes
 Joystick joystick;
 StringBuilder<WELCOME_MESSAGE_SIZE> welcomeMessage;
 
 /**
- * Function to print the line with the instructions
+ * Method that prints the instructions on how to edit the welcome message.
  */
 void printInstructionsLine() {
-  LCD::writeChar(arrowUpDown.address); // UP
+  static constexpr uint8_t ARROW_LEFT = 0x7F;
+  static constexpr uint8_t ARROW_RIGHT = 0x7E;
+  LCD::writeChar(ARROW_UP_DOWN.address);
   LCD::writeString("Sel ");
-  LCD::writeChar(0x7F); // left
-  LCD::writeChar(0x7E); // right
+  LCD::writeChar(ARROW_LEFT);
+  LCD::writeChar(ARROW_RIGHT);
   LCD::writeString("Nav ");
-  LCD::writeChar(enter.address); // enter
+  LCD::writeChar(ENTER.address);
   LCD::writeString("Save");
 }
 
 /**
- * Function to prepare the welcome message to edit.
+ * Method that sets up the screen to edit the welcome message
  */
 void prepareStringEdit() {
     LCD::clearDisplay();
@@ -143,10 +153,11 @@ void rightEventCallback() {
  * Function that handles the event when the joystick gets pressed.
  */
 void pressEventCallback() {
-  FLASH::init();
+  FLASH::init();  // Call init to change from I2C to SPI
   FLASH::write(FLASH_ADDRESS, welcomeMessage.getBufferSize(), welcomeMessage.getBuffer());
-  // Verify if write was successful
-  uint8_t checkBuffer[WELCOME_MESSAGE_SIZE + 1];
+
+  // Verify if write was successful by readying the flash and comparing the data
+  uint8_t checkBuffer[WELCOME_MESSAGE_SIZE];
   FLASH::read(FLASH_ADDRESS, welcomeMessage.getBufferSize(), checkBuffer);
 
   bool savedSuccessfully = true;
@@ -165,7 +176,7 @@ void pressEventCallback() {
     delay_ms(500);
     prepareStringEdit();
   }
-  ADC_DAC::initialize();
+  ADC_DAC::initialize();  // Call init to change from SPI to I2C
 }
 
 
@@ -175,21 +186,24 @@ int main(void) {
     LCD::initialize();
     LCD::enable(true);
     LCD::clearDisplay();
-    LCD::createCustomChar(&arrowUpDown);
-    LCD::createCustomChar(&enter);
+    LCD::createCustomChar(&ARROW_UP_DOWN);
+    LCD::createCustomChar(&ENTER);
 
-    // Initialize I2C and MMA
+    // Initialize I2C and ADC
     I2C_SPI::init();
     ADC_DAC::initialize();
     ADC_DAC::write(0xFF);   // Backlight ON
 
+    // Initialize FLASH
     FLASH::init();
 
-    uint8_t storedWelcomeMessage[WELCOME_MESSAGE_SIZE + 1]{0};
+    // Read welcome message from flash and write to LCD
+    uint8_t storedWelcomeMessage[WELCOME_MESSAGE_SIZE]{0};
     FLASH::read(FLASH_ADDRESS, welcomeMessage.getBufferSize(), &storedWelcomeMessage[0]);
     LCD::writeString((const char*)storedWelcomeMessage);
-    welcomeMessage.setInitialMessage((const char*)storedWelcomeMessage);
+    welcomeMessage.setString((const char*)storedWelcomeMessage);
 
+    // Show hoe to edit the welcome message
     delay_ms(1000);
     LCD::clearDisplay();
     LCD::writeString("Edit welcome msg");
@@ -197,6 +211,7 @@ int main(void) {
     printInstructionsLine();
     delay_ms(1000);
 
+    // Register events from Joystick
     joystick.registerUpEventCallback(&upEventCallback);
     joystick.registerDownEventCallback(&downEventCallback);
     joystick.registerRightEventCallback(&rightEventCallback);

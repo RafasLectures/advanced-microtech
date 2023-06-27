@@ -19,6 +19,19 @@
 
 namespace AdvancedMicrotech {
 
+/**
+ * Class implements an abstraction for the SPI peripheral of the MSP430. It provides read and write methods
+ * to make easier to use this peripheral.
+ *
+ * @tparam MOSI The MOSI pin
+ * @tparam MISO The MISO pin
+ * @tparam SCLK The SCLK pin
+ * @tparam CLOCK The clock source
+ * @tparam BUS_SELECTION The pin that allows to select the bus (I2C or SPI)
+ * @tparam BAUDRATE The baudrate of the SPI bus
+ * @tparam MASTER Whether this is master or slave
+ * @tparam MSB Whether the bus is MSB or LSB
+ */
 template<typename MOSI, typename MISO, typename SCLK, typename CLOCK, typename BUS_SELECTION,
          const uint32_t BAUDRATE = 1000000, const bool MASTER = true, const bool MSB = true>
 class SPI_T {
@@ -35,7 +48,7 @@ public:
     SCLK::init();
     BUS_SELECTION::init();
     BUS_SELECTION::set_low();
-    delay_ms(1);  // Added delay to make sure IO levels have settled
+
     // Set the interruption function pointers to current class interruption handle functions
     USCI::spiTxISRFunction = &SPI_T<MOSI, MISO, SCLK, CLOCK, BUS_SELECTION, BAUDRATE, MASTER, MSB>::handleTxIsr;
     USCI::spiRxISRFunction = &SPI_T<MOSI, MISO, SCLK, CLOCK, BUS_SELECTION, BAUDRATE, MASTER, MSB>::handleRxIsr;
@@ -88,26 +101,28 @@ public:
    * (1 pt.)
    */
   static constexpr void read(uint8_t length, uint8_t* data) {
+    // Make sure the bus is not busy before manipulating the buffer variables.
     while (busy()) {
     }
     transferCount = length;
     transferBuffer = data;
 
     USCI::clear_rx_irq();
-    USCI::disable_rx_tx_irq();
     USCI::enable_rx_irq();
+
+    // Make sure the TX buffer is ready to accept new data.
     while (!USCI::tx_irq_pending()) {
     }
     *USCI::TXBUF = 0xFF;  // Write dummy data to generate clock output
+
+    // Wait until all data has been written from the RX buffer into the pointer
     while (transferCount > 0) {
     }
-    //while (!USCI::rx_irq_pending()) {
-    //}
+
     while (busy()) {
     }
     USCI::disable_rx_tx_irq();
     transferBuffer = nullptr;
-
   }
 
   /**
@@ -118,28 +133,34 @@ public:
    * (1 pt.)
    */
   static constexpr void write(uint8_t length, uint8_t* data) {
+    // Make sure the bus is not busy before manipulating the buffer variables.
     while (busy()) {
     }
     transferCount = length;
     transferBuffer = data;
 
     USCI::enable_tx_irq();
+    // Wait until all data has been written from the pointer into the TX buffer
     while (transferCount > 0) {
+    }
+    while (busy()) {
     }
     USCI::disable_rx_tx_irq();
     transferBuffer = nullptr;
-    while (busy()) {
-    }
   }
 
 private:
   /**
-   *
-   * @return
+   * Verify if the bus is busy.
+   * @return if the bus is busy (1) or not (0)
    */
   static constexpr uint8_t busy() {
     return *USCI::STAT & UCBUSY;
   }
+
+  /**
+   * Method to handle the TX interruption of the SPI.
+   */
   static void handleTxIsr() {
     if (transferCount == 0) {
       // If the transfer count is 0, it means we already the transfer has been completed,
@@ -147,21 +168,20 @@ private:
       USCI::disable_tx_irq();
       return;
     }
-    // The UCx0TXIFG is set when TXBUF is ready to receive the next data
-    while (!USCI::tx_irq_pending()) {
-    }
+    // The UCx0TXIFG is set when TXBUF is ready to send the next data, so if the interruption happened, it means
+    // we can already write the next data
     // Put current value of transferBuffer and point to the next transferBuffer position.
     *USCI::TXBUF = *transferBuffer++;
     transferCount--;  // Decrease transferCount, since one more transfer has been done.
   }
 
   static void handleRxIsr() {
-
     if (transferCount == 0) {
-        USCI::clear_rx_irq();
-        return;
-    }
-    while (!USCI::rx_irq_pending()) {
+      // If the transfer count is 0, it means we already the transfer has been completed,
+      // so we just disable the interruption and do an early return.
+      USCI::clear_rx_irq();
+      USCI::disable_rx_irq();
+      return;
     }
     // The UCx0RXIFG is set when RXBUF has received a complete character, so there has been a RX transfer
     // Put current value from RXBUF to transferBuffer and point to the next transferBuffer position.
@@ -169,7 +189,7 @@ private:
     transferCount--;  // Decrease transferCount, since one more transfer has been done.
     if (transferCount == 0) {
       // If the transfer count is 0, it means we already the transfer has been completed,
-      // so we just disable the interruption and do an early return.
+      // so we just disable the interruption.
       USCI::disable_rx_irq();
     } else {
       // Writes dummy data to get more clock
@@ -183,7 +203,6 @@ private:
   static volatile uint8_t transferCount;    // Variable used to know how many bytes are left to be transferred.
   static volatile uint8_t* transferBuffer;  // Pointer to where to write/get the received/send data
 };
-
 
 template<typename MOSI, typename MISO, typename SCLK, typename CLOCK, typename BUS_SELECTION, const uint32_t BAUDRATE,
          const bool MASTER, const bool MSB>

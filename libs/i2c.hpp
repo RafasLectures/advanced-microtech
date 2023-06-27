@@ -31,7 +31,8 @@ namespace AdvancedMicrotech {
  * @tparam BAUDRATE The desired baud rate of the I2C
  * @tparam IS_MASTER Boolean to define weather the I2C is a master or a slave. True = master.
  */
-template<typename SDA, typename SCL, typename CLOCK, typename BUS_SELECTION, uint32_t BAUDRATE = 100000, const bool IS_MASTER = true>
+template<typename SDA, typename SCL, typename CLOCK, typename BUS_SELECTION, uint32_t BAUDRATE = 100000,
+         const bool IS_MASTER = true>
 class I2C_T {
   using USCI = USCI_T<USCI_MODULE::USCI_B, 0>;  // Alias to get the USCIB0 registers and enable interruptions.
 public:
@@ -52,7 +53,6 @@ public:
     SCL::init();
     BUS_SELECTION::init();
     BUS_SELECTION::set_high();
-    delay_ms(1);  // Added delay to make sure IO levels have settled
 
     // Enable SW reset to prevent the operation of USCI.
     // According to the datasheet:
@@ -129,7 +129,7 @@ public:
     // Wait until we have finished to transfer all data.
     while (transferCount > 0) {
     }
-
+    // Make sure every data was transferred to the I2C bus.
     while (!USCI::tx_irq_pending()) {
     }
     if (stop) {
