@@ -14,7 +14,7 @@ endif()
 
 add_subdirectory(libs)
 if (NOT MSP_COMPILER)
-  #add_subdirectory(example)
+  add_subdirectory(example)
 endif()
 
 add_subdirectory(exercise1)

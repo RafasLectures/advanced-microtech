@@ -15,15 +15,11 @@
 #include <msp430g2553.h>
 
 #include "common/usci.hpp"
+#include "libs/common/clocks.hpp"
 #include <cassert>
 #include <cstdint>
 
 namespace AdvancedMicrotech {
-
-// Function pointers that are called by the interruptions.
-// They are set in the initialize methods of the I2C.
-extern void (*handleUSCIB0TxIsrFunc)(void);
-extern void (*handleUSCIB0RxIsrFunc)(void);
 
 /**
  * Class implements an abstraction for the I2C peripheral of the MSP430. It provides read and write methods
@@ -35,11 +31,11 @@ extern void (*handleUSCIB0RxIsrFunc)(void);
  * @tparam BAUDRATE The desired baud rate of the I2C
  * @tparam IS_MASTER Boolean to define weather the I2C is a master or a slave. True = master.
  */
-template<typename SDA, typename SCL, typename CLOCK, uint32_t BAUDRATE = 100000, const bool IS_MASTER = true>
+template<typename SDA, typename SCL, typename CLOCK, typename BUS_SELECTION, uint32_t BAUDRATE = 100000,
+         const bool IS_MASTER = true>
 class I2C_T {
-public:
   using USCI = USCI_T<USCI_MODULE::USCI_B, 0>;  // Alias to get the USCIB0 registers and enable interruptions.
-
+public:
   /**
    * Initialize the I2C state machine. The speed is 100 kBit/s.
    * @param slaveAddress The 7-bit address of the slave (MSB shall always be 0, i.e. "right alignment").
@@ -52,19 +48,26 @@ public:
       assert(false);
       return;
     }
+
+    // Make sure the bus is not being used by another instance before change it to I2C mode.
+    while(*USCI::STAT & UCBBUSY) {
+    }
+
     // Initialize the IOs
     SDA::init();
     SCL::init();
-
-    // Set the interruption function pointers to current class interruption handle functions
-    handleUSCIB0TxIsrFunc = &I2C_T<SDA, SCL, CLOCK, BAUDRATE, IS_MASTER>::handleTxIsr;
-    handleUSCIB0RxIsrFunc = &I2C_T<SDA, SCL, CLOCK, BAUDRATE, IS_MASTER>::handleRxIsr;
+    BUS_SELECTION::init();
+    BUS_SELECTION::set_high();
 
     // Enable SW reset to prevent the operation of USCI.
     // According to the datasheet:
     // "Configuring and reconfiguring the USCI module should be done when
     // UCSWRST is set to avoid unpredictable behavior."
     *USCI::CTL1 |= UCSWRST;
+
+    // Set the interruption function pointers to current class interruption handle functions
+    USCI::i2cTxISRFunction = &I2C_T<SDA, SCL, CLOCK, BUS_SELECTION, BAUDRATE, IS_MASTER>::handleTxIsr;
+    USCI::i2cRxISRFunction = &I2C_T<SDA, SCL, CLOCK, BUS_SELECTION, BAUDRATE, IS_MASTER>::handleRxIsr;
 
     // Sets as I2C master or not, USCI as I2C mode and synchronous mode
     *USCI::CTL0 = (IS_MASTER ? UCMST : 0) | UCMODE_3 | UCSYNC;
@@ -87,7 +90,7 @@ public:
       *USCI::CTL1 = UCSSEL_2 | UCSWRST;
     }
 
-    *USCI::CTL1 &= ~UCSWRST;  // Release SW reset so USCI is operational
+    USCI::set_i2c_active(true);
 
     transferCount = 0;
     transferBuffer = nullptr;
@@ -96,6 +99,8 @@ public:
     USCI::clear_rx_irq();
     USCI::clear_tx_irq();
     USCI::disable_rx_tx_irq();
+
+    *USCI::CTL1 &= ~UCSWRST;  // Release SW reset so USCI is operational
   }
 
   /**
@@ -129,11 +134,16 @@ public:
     // Wait until we have finished to transfer all data.
     while (transferCount > 0) {
     }
-
+    // Make sure every data was transferred to the I2C bus.
+    while (!USCI::tx_irq_pending()) {
+    }
     if (stop) {
       *USCI::CTL1 |= UCTXSTP;  // I2C stop condition
     }
-
+    // Just to make sure the STOP condition has been sent.
+    // I cannot understand why I am having to put it here... I couldn't make it work without it.
+    // TODO try to remove this.
+    delay_us(500);
     // Reset internal variables and return if there were any NACKs.
     transferBuffer = nullptr;
     transferCount = 0;
@@ -161,7 +171,7 @@ public:
     // Make sure there are no interruptions pending.
     USCI::clear_tx_irq();
     USCI::clear_rx_irq();
-    
+
     // Enable TX and RX interruptions, so we can also get the NACKs.
     // The interruption is responsible to disable it again.
     USCI::enable_rx_tx_irq();
@@ -171,15 +181,15 @@ public:
 
     // If you only want to receive one byte, you instantly have to write a STOP-condition
     // after the START-condition got sent.
-    if(length <= 1) {
-        // Wait until start is sent to set the stop
-        while(*USCI::CTL1 & UCTXSTT) {
-        }
-        *USCI::CTL1 |= UCTXSTP;  // I2C stop condition
+    if (length <= 1) {
+      // Wait until start is sent to set the stop
+      while (*USCI::CTL1 & UCTXSTT) {
+      }
+      *USCI::CTL1 |= UCTXSTP;  // I2C stop condition
     }
 
     // This makes the function a blocking function.
-    // Wait until all data has been transfered.
+    // Wait until all data has been transferred.
     while (transferCount > 0) {
     }
 
@@ -224,37 +234,19 @@ public:
   }
 
 private:
-  static uint8_t transferCount;    // Variable used to know how many bytes are left to be transferred.
-  static uint8_t* transferBuffer;  // Pointer to where to write/get the received/send data
-  static bool nackReceived;        // Variable used to know if a NACK was received.
+  static volatile uint8_t transferCount;    // Variable used to know how many bytes are left to be transferred.
+  static volatile uint8_t* transferBuffer;  // Pointer to where to write/get the received/send data
+  static volatile bool nackReceived;        // Variable used to know if a NACK was received.
 };
 
-template<typename SDA, typename SCL, typename CLOCK, uint32_t BAUDRATE, const bool IS_MASTER>
-uint8_t I2C_T<SDA, SCL, CLOCK, BAUDRATE, IS_MASTER>::transferCount;
+template<typename SDA, typename SCL, typename CLOCK, typename BUS_SELECTION, uint32_t BAUDRATE, const bool IS_MASTER>
+volatile uint8_t I2C_T<SDA, SCL, CLOCK, BUS_SELECTION, BAUDRATE, IS_MASTER>::transferCount;
 
-template<typename SDA, typename SCL, typename CLOCK, uint32_t BAUDRATE, const bool IS_MASTER>
-uint8_t* I2C_T<SDA, SCL, CLOCK, BAUDRATE, IS_MASTER>::transferBuffer;
+template<typename SDA, typename SCL, typename CLOCK, typename BUS_SELECTION, uint32_t BAUDRATE, const bool IS_MASTER>
+volatile uint8_t* I2C_T<SDA, SCL, CLOCK, BUS_SELECTION, BAUDRATE, IS_MASTER>::transferBuffer;
 
-template<typename SDA, typename SCL, typename CLOCK, uint32_t BAUDRATE, const bool IS_MASTER>
-bool I2C_T<SDA, SCL, CLOCK, BAUDRATE, IS_MASTER>::nackReceived;
-
-/******************************************************************************
- * FUNCTION PROTOTYPES
- *****************************************************************************/
-
-#if 0
-// Initialize the I2C state machine. The speed should be 100 kBit/s.
-// <addr> is the 7-bit address of the slave (MSB shall always be 0, i.e. "right alignment"). (2 pts.)
-void i2c_init (unsigned char addr);
-
-// Write a sequence of <length> characters from the pointer <txData>.
-// Return 0 if the sequence was acknowledged, 1 if not. Also stop transmitting further bytes upon a missing acknowledge.
-// Only send a stop condition if <stop> is not 0. (2 pts.)
-unsigned char i2c_write(unsigned char length, unsigned char * txData, unsigned char stop);
-
-// Returns the next <length> characters from the I2C interface. (2 pts.)
-void i2c_read(unsigned char length, unsigned char * rxData);
-#endif
+template<typename SDA, typename SCL, typename CLOCK, typename BUS_SELECTION, uint32_t BAUDRATE, const bool IS_MASTER>
+volatile bool I2C_T<SDA, SCL, CLOCK, BUS_SELECTION, BAUDRATE, IS_MASTER>::nackReceived;
 
 }  // namespace AdvancedMicrotech
 #endif /* EXERCISE_LIBS_I2C_H_ */

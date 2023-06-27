@@ -57,7 +57,7 @@ typedef LCD_T<RS, RW, E, LCD_BUS> LCD;
 typedef GPIO_OUTPUT_T<1, 3, HIGH> I2C_SPI;  // Pin P1.3 as output and initial value is 1
 typedef GPIO_MODULE_T<1, 6, 3> SCL;         // Setting P1.6 as its function 3 (SCL)
 typedef GPIO_MODULE_T<1, 7, 3> SDA;         // Setting P1.7 as its function 3 (SDA)
-typedef I2C_T<SDA, SCL, SMCLK> I2C;         // Create I2C and set the SDA and SCL pins. SMCLK is set as clock source.
+typedef I2C_T<SDA, SCL, SMCLK, I2C_SPI> I2C;         // Create I2C and set the SDA and SCL pins. SMCLK is set as clock source.
 
 // ============ ADC ===========
 typedef ADC_DAC_T<I2C> ADC_DAC;  // Create the ADC and pass the I2C as communication means.

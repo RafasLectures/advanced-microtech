@@ -44,6 +44,7 @@ Debug/
 Release/
 build/
 build-*/
+cmake-build*/
 
 # Microcontroller specifics
 *.cmd

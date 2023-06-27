@@ -19,6 +19,11 @@
 
 namespace AdvancedMicrotech {
 
+struct LcdCustomCharacter {
+  const uint8_t lines[8];
+  const uint8_t address;
+};
+
 /**
  * Class that implements the abstraction for a LCD. It provides methods to make it easier to manipulate the LCD.
  *
@@ -177,6 +182,17 @@ public:
     }
   }
 
+  static constexpr void createCustomChar(const LcdCustomCharacter* customChar) noexcept {
+    constexpr uint8_t SET_CGRAM_ADDRESS_BASE = 0x40;  // Base
+
+    sendInstruction(SET_CGRAM_ADDRESS_BASE | (((*customChar).address & 0x3F) << 3));
+    setRegister(RegisterSelection::DATA);
+    for(uint8_t line = 0; line < 8; line++) {
+      writeByteToBus((*customChar).lines[line]);
+    }
+    setCursorPosition(0, 0);
+  }
+
 private:
   /**
    * Type to define the different types of registers are present.
@@ -240,7 +256,9 @@ private:
   static void writeWordToBus(const uint8_t dataToWrite) noexcept {
     setOperation(DataOperation::WRITE);  // Set to write mode
     BUS::write(dataToWrite);             // Put data to bus
+//    delay_us(20);
     enableOperation(true);               // Enable write
+//    delay_us(20);
     enableOperation(false);              // Disable write
   }
   /**
@@ -275,7 +293,7 @@ private:
 
     // According to the datasheet, the current address counter is also reported together with the busy flag.
     // At the moment it is being read, but not used.
-    uint8_t addrCounter = (0xE & dataVal) << 4;
+    addrCounter = (0xE & dataVal) << 4;
     enableOperation(false);      // Disable read
     enableOperation(true);       // Enable read
     addrCounter |= BUS::read();  // Get value from Bus
@@ -311,6 +329,7 @@ private:
 
   static volatile uint8_t displayControl;  ///< Attribute that holds the current "state" of the "DisplayControl" frame.
   static volatile uint8_t functionSet;     ///< Attribute that holds the current "state" of the "FunctionSet" frame.
+  static volatile uint8_t addrCounter;     ///< Attribute that holds the current "state" of the "DisplayMode" frame.>
 };
 
 // Needs to declare the static attributes so the linker allocates memory to it.
@@ -319,6 +338,9 @@ volatile uint8_t LCD_T<RS, RW, E, BUS>::displayControl;
 
 template<typename RS, typename RW, typename E, typename BUS>
 volatile uint8_t LCD_T<RS, RW, E, BUS>::functionSet;
+
+template<typename RS, typename RW, typename E, typename BUS>
+volatile uint8_t LCD_T<RS, RW, E, BUS>::addrCounter;
 
 }  // namespace AdvancedMicrotech
 #if 0

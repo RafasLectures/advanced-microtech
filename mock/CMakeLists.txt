@@ -1,6 +1,5 @@
 
 file(GLOB_RECURSE SOURCES
-    ./*.hpp
     ./*.cpp
     )
 

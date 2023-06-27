@@ -22,9 +22,9 @@ enum CLOCK_SOURCE_TYPE {
   CLOCK_SOURCE_TYPE_DCO,
 };
 
-uint8_t VLOCLK_usage_count;
-uint8_t LFXT1CLK_usage_count;
-uint8_t DCOCLK_usage_count;
+extern uint8_t VLOCLK_usage_count;
+extern uint8_t LFXT1CLK_usage_count;
+extern uint8_t DCOCLK_usage_count;
 
 inline void enter_idle(void) {
   __bis_SR_register(GIE + CPUOFF
