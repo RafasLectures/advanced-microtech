@@ -116,4 +116,44 @@ constexpr void writeValueToRegister(volatile TYPE& registerRef, TYPE bitSelectio
   resetRegisterBits(registerRef, resetVal);
 }
 
+constexpr void convertIntToCString(char* outputBuffer, int16_t value, uint8_t numDigits, bool trailingZeros) {
+  constexpr int32_t POW10[] = {1, 10, 100, 1000, 10000, 100000};
+  constexpr int16_t BASE_NUM_ASCII = 0x30;  // Base hex of a number in ASCII
+
+  if (value == 0) {
+    *outputBuffer = BASE_NUM_ASCII;
+    return;
+  }
+  // In a signed number the most significant bit is 1. Since it is an int16, the mask checks only the last bit
+  constexpr int16_t SIGN_MASK = 0x8000;
+  // Check if number is negative
+  if ((SIGN_MASK & value) != 0) {
+    constexpr uint8_t MINUS_IN_ASCII = 0x2D;
+    *outputBuffer++ = MINUS_IN_ASCII;
+
+    // Flip every bit of it, so it is like a normal number
+    // without the sign and add 1 because -1 is 0xFFFF, so after flipping
+    // it is 0x0000 + 1 = 0x0001;
+    value = ~value;
+    value++;
+  }
+  // Writes each digit in the screen starting from the 4th digit.
+  int8_t i = numDigits - 1;
+  while (i >= 0) {
+    // We first need to remove the digit higher to the digit we want to print.
+    const int16_t originalNumber = value;
+    const int16_t numberToProcess = value % POW10[i + 1];
+    if (originalNumber >= POW10[i]) {
+      const int16_t toBeWritten = numberToProcess / POW10[i];
+      *outputBuffer++ = BASE_NUM_ASCII + toBeWritten;
+    } else if(trailingZeros) {
+      *outputBuffer++ = BASE_NUM_ASCII;
+    }
+    i--;
+  }
+
+
+}
+
+
 #endif  // MICROTECH_HELPERS_HPP

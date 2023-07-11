@@ -54,13 +54,14 @@ public:
    */
   void clear() noexcept {
     buffer.fill(0x00);
+    currentIndex = 0;
   }
 
   /**
    * Method to get the string.
    * @return The string
    */
-  const char* getString() noexcept {
+  const char* getString() const noexcept {
     return (const char*)buffer.data();
   }
 

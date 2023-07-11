@@ -19,15 +19,15 @@ void Joystick::registerPressEventCallback(Callback callback) noexcept {
 }
 
 void Joystick::evaluateJoystick(const uint8_t (*adcValues)[4]) noexcept {
-  static constexpr uint8_t X_AD_CHANNEL = 1;      // Variable just to make easier to extract the ADC value
-  static constexpr uint8_t Y_AD_CHANNEL = 2;      // Variable just to make easier to extract the ADC value
-  static constexpr uint8_t PRESS_AD_CHANNEL = 3;  // Variable just to make easier to extract the ADC value
+  constexpr uint8_t X_AD_CHANNEL = 1;      // Variable just to make easier to extract the ADC value
+  constexpr uint8_t Y_AD_CHANNEL = 2;      // Variable just to make easier to extract the ADC value
+  constexpr uint8_t PRESS_AD_CHANNEL = 3;  // Variable just to make easier to extract the ADC value
 
-  static constexpr uint8_t LEFT_THRESHOLD = 253;
-  static constexpr uint8_t RIGHT_THRESHOLD = 2;
+  constexpr uint8_t LEFT_THRESHOLD = 253;
+  constexpr uint8_t RIGHT_THRESHOLD = 2;
 
-  static constexpr uint8_t UP_THRESHOLD = 2;
-  static constexpr uint8_t DOWN_THRESHOLD = 253;
+  constexpr uint8_t UP_THRESHOLD = 2;
+  constexpr uint8_t DOWN_THRESHOLD = 253;
 
   static constexpr uint8_t PRESSED_THRESHOLD = 254;
 

@@ -1,0 +1,18 @@
+Always reserve a full section for the audio. If it passes one section, reserve next section for it.
+Menu will be:
+ - Main menu will be:
+ first line: up/down Nav mm:ss free (16)
+ second line: name 3 chars      ENTER_SIGN Sel
+ - New Audio
+     up/down Sel left/right Nav ENTER_SIGN Save
+     name 3 chars - Start with number of audios + 1
+ - Erase all
+ - Selected audio
+    first line: name 3 chars left/right Nav ENTER_SIGN Sel (12)
+    Second line: ]Play [Rec [Back
+        While recording show:
+            Recording  mm:ss
+            ENTER_SIGN Stop recording
+        While playing show:
+            Playing  mm:ss
+            ENTER_SIGN Stop playing
