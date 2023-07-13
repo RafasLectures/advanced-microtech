@@ -9,7 +9,7 @@ public:
   Audio(const char* newName) : name(newName) {}
   void play();
   void record();
-  void erase();
+  void erase() {}
 
   uint32_t getAddress() const {
     return address;

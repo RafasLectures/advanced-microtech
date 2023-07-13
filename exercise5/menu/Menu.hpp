@@ -2,100 +2,101 @@
 #define ADVANVED_MICROTECH_MENU_HPP
 
 #include "exercise5/AudioRecorder.hpp"
+#include "libs/common/Joystick.hpp"
 #include <cstdint>
 
 namespace AdvancedMicrotech {
 
-/**
- * A menu item, selectable by the user.
- * The item could perform a specific action or be another Menu in itself.
- *
- * Menu items must have:
- *  * A getTitle() method
- *  * A clearTitle() method
- *  * A DISPLAY attribute
- */
-template <typename T, uint8_t X_POS, uint8_t Y_POS>
 class MenuItem {
+  using ClearDisplayFunctionPtr = void (*)();
+  using BlinkDisplayCursorFunctionPtr = void (*)(const uint8_t);
+  using WriteStringToDisplayFunctionPtr = void (*)(const char*);
+  using WriteCharToDisplayFunctionPtr = void (*)(const char);
+  using SetCursorPositionFunctionPtr = void (*)(const uint8_t, const uint8_t);
+
 public:
-  static constexpr void initialize(AudioRecorder* const audioRecorderPtr, Joystick* const joystickPtr){
+  using DisplayTitleFunctionPtr = void (*)();
+
+  static constexpr void setDependencies(AudioRecorder* const audioRecorderPtr, Joystick* const joystickPtr) {
     audioRecorder = audioRecorderPtr;
     joystick = joystickPtr;
-    T::specificInitialize(audioRecorderPtr, joystickPtr);
   }
 
-  static constexpr void showTitle() {
-    printString(T::getTitle());
+  template<typename DISPLAY>
+  static constexpr void setDisplay() {
+    clearDisplayFunction = &DISPLAY::clearDisplay;
+    blinkDisplayCursorFunction = &DISPLAY::blinkCursor;
+    writeStringToDisplayFunction = &DISPLAY::writeString;
+    writeCharToDisplayFunction = &DISPLAY::writeChar;
+    setCursorPositionFunction = &DISPLAY::setCursorPosition;
   }
 
-  static void printString(const char* stringToPrint) {
-    T::clearTitle();
-    T::DISPLAY::setCursorPosition(X_POS, Y_POS);
-    while (*stringToPrint != 0x00) {
-      if(*stringToPrint == *"\n") {
-        T::DISPLAY::setCursorPosition(0, Y_POS+1);
-      } else {
-        T::DISPLAY::writeChar(*stringToPrint);
-      }
-      stringToPrint++;
-    }
-  }
 protected:
+  static void clearDisplay();
+  static void blinkDisplayCursor(const uint8_t blink);
+  static void writeStringToDisplay(const char* textToWrite);
+  static void writeCharToDisplay(const char charToWrite);
+  static void setDisplayCursorPosition(const uint8_t x, const uint8_t y);
+
+  static AudioRecorder* getAudioRecorderPtr();
+  static Joystick* getJoystickPtr();
+
+private:
   static AudioRecorder* audioRecorder;
   static Joystick* joystick;
+  static ClearDisplayFunctionPtr clearDisplayFunction;
+  static BlinkDisplayCursorFunctionPtr blinkDisplayCursorFunction;
+  static WriteStringToDisplayFunctionPtr writeStringToDisplayFunction;
+  static WriteCharToDisplayFunctionPtr writeCharToDisplayFunction;
+  static SetCursorPositionFunctionPtr setCursorPositionFunction;
 };
 
-template <typename T, uint8_t X_POS, uint8_t Y_POS>
-AudioRecorder*  MenuItem<T, X_POS, Y_POS>::audioRecorder = nullptr;
-
-template <typename T, uint8_t X_POS, uint8_t Y_POS>
-Joystick*  MenuItem<T, X_POS, Y_POS>::joystick = nullptr;
-
-/**
- * Menus must implement:
- *  * A getTitle() method
- *  * A getMenuText() method
- *  * A clearText() method
- *  * A showItems() method
- *  * A initialize(Joystick*) method
- *  * A DISPLAY attribute
- * @tparam T
- */
-template <typename T, uint8_t X_POS, uint8_t Y_POS>
-class Menu : public MenuItem<T, X_POS, Y_POS>{
-  using Base = MenuItem<T, X_POS, Y_POS>;
+template<typename CHILD>
+class Menu : public MenuItem {
 public:
-  static void select() {
-    T::DISPLAY::clearDisplay();
-    MenuItem<T, 0, 0>::printString(T::getMenuText());
-    T::showItems();
-    Base::joystick->registerUpEventCallback(&upAction);
-    Base::joystick->registerDownEventCallback(&downAction);
-    Base::joystick->registerLeftEventCallback(&leftAction);
-    Base::joystick->registerRightEventCallback(&rightAction);
-    Base::joystick->registerPressEventCallback(&enterAction);
+  static constexpr void select() {
+    displayMenu();
+    CHILD::showItems();
+    getJoystickPtr()->registerUpEventCallback(&upAction);
+    getJoystickPtr()->registerDownEventCallback(&downAction);
+    getJoystickPtr()->registerLeftEventCallback(&leftAction);
+    getJoystickPtr()->registerRightEventCallback(&rightAction);
+    getJoystickPtr()->registerPressEventCallback(&enterAction);
+  }
+
+  static void displayTitle() {
+    MenuItem::setDisplayCursorPosition(CHILD::X_POS, CHILD::Y_POS);
+    CHILD::clearTitle();
+    MenuItem::setDisplayCursorPosition(CHILD::X_POS, CHILD::Y_POS);
+    MenuItem::writeStringToDisplay(CHILD::getTitle());
   }
 
   static constexpr void upAction() {
-    T::specificUpAction();
+    CHILD::specificUpAction();
   }
 
   static constexpr void downAction() {
-    T::specificDownAction();
+    CHILD::specificDownAction();
   }
 
   static constexpr void leftAction() {
-    T::specificLeftAction();
+    CHILD::specificLeftAction();
   }
 
   static constexpr void rightAction() {
-    T::specificRightAction();
+    CHILD::specificRightAction();
   }
 
   static constexpr void enterAction() {
-    T::specificEnterAction();
+    CHILD::specificEnterAction();
   }
 
+private:
+  static constexpr void displayMenu() {
+    MenuItem::clearDisplay();
+    MenuItem::setDisplayCursorPosition(0, 0);
+    MenuItem::writeStringToDisplay(CHILD::getMenuText());
+  }
 };
-} // namespace AdvancedMicrotech
+}  // namespace AdvancedMicrotech
 #endif  // ADVANVED_MICROTECH_MENU_HPP
