@@ -34,7 +34,7 @@ void NewAudioMenu::specificRightAction() {
 }
 
 void NewAudioMenu::specificEnterAction() {
-  getAudioRecorderPtr()->createNewAudio(newAudioName.getString());
+  getAudioRecorderPtr()->createNewEmptyAudio(newAudioName.getString());
   AudioMenu::select();
 }
 }  // namespace AdvancedMicrotech

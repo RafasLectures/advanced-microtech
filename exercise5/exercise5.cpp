@@ -40,9 +40,8 @@
 #include "libs/i2c.hpp"
 #include "libs/templateEMP.h"  // UART disabled, see @note!
 
+#include "audiorecorder/AudioRecorder.hpp"
 #include "libs/common/Joystick.hpp"
-#include "libs/common/StringBuilder.hpp"
-#include "AudioRecorder.hpp"
 
 #include "menu/MainMenu.hpp"
 
@@ -83,9 +82,6 @@ typedef GPIO_OUTPUT_T<3, 3, HIGH> HOLD;  // Setting P3.4 as output and initial v
 typedef GPIO_OUTPUT_T<3, 4, HIGH> CS;    // Setting P3.4 as output and initial value is 1
 typedef GPIO_OUTPUT_T<3, 5, HIGH> WP;    // Setting P3.4 as output and initial value is 1
 typedef FLASH_T<CS, HOLD, WP, SPI> FLASH;
-
-static constexpr uint8_t WELCOME_MESSAGE_SIZE = 17;  // Size of the welcome message + null terminator
-static constexpr uint32_t FLASH_ADDRESS = 0x00;      // Address to read/store the welcome message
 
 // Custom LCD characters
 constexpr LcdCustomCharacter ARROW_UP_DOWN{{0x04, 0x0E, 0x15, 0x04, 0x04, 0x15, 0x0E, 0x04}, 0x01};

@@ -5,7 +5,7 @@ AudioRecorder* MenuItem::audioRecorder = nullptr;
 Joystick* MenuItem::joystick = nullptr;
 MenuItem::ClearDisplayFunctionPtr MenuItem::clearDisplayFunction = nullptr;
 MenuItem::BlinkDisplayCursorFunctionPtr MenuItem::blinkDisplayCursorFunction = nullptr;
-MenuItem::WriteStringToDisplayFunctionPtr MenuItem::writeStringToDisplayFunction = nullptr;
+//MenuItem::WriteStringToDisplayFunctionPtr MenuItem::writeStringToDisplayFunction = nullptr;
 MenuItem::WriteCharToDisplayFunctionPtr MenuItem::writeCharToDisplayFunction = nullptr;
 MenuItem::SetCursorPositionFunctionPtr MenuItem::setCursorPositionFunction = nullptr;
 

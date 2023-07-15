@@ -1,1 +1,2 @@
 add_subdirectory(stringbuilder)
+add_subdirectory(audiorecorder)

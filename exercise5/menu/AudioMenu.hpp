@@ -15,7 +15,7 @@ public:
     return getAudioRecorderPtr()->getCurrentAudioName();
   }
   static constexpr const char* getMenuText() {
-    return "      \x7F\x7ENav \x02Sel\n\xDB\Play \xDB\Rec \xDB\Back";
+    return "      \x7F\x7ENav \x02Sel\n\xDBPlay \xDBRec \xDB\Back";
   }
 
   static void clearTitle();

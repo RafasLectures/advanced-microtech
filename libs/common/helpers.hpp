@@ -154,6 +154,4 @@ constexpr void convertIntToCString(char* outputBuffer, int16_t value, uint8_t nu
 
 
 }
-
-
 #endif  // MICROTECH_HELPERS_HPP

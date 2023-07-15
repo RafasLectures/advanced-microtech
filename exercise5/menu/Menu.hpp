@@ -1,7 +1,7 @@
 #ifndef ADVANVED_MICROTECH_MENU_HPP
 #define ADVANVED_MICROTECH_MENU_HPP
 
-#include "exercise5/AudioRecorder.hpp"
+#include "exercise5/audiorecorder/AudioRecorder.hpp"
 #include "libs/common/Joystick.hpp"
 #include <cstdint>
 
@@ -13,9 +13,7 @@ class MenuItem {
   using WriteStringToDisplayFunctionPtr = void (*)(const char*);
   using WriteCharToDisplayFunctionPtr = void (*)(const char);
   using SetCursorPositionFunctionPtr = void (*)(const uint8_t, const uint8_t);
-
 public:
-  using DisplayTitleFunctionPtr = void (*)();
 
   static constexpr void setDependencies(AudioRecorder* const audioRecorderPtr, Joystick* const joystickPtr) {
     audioRecorder = audioRecorderPtr;
@@ -26,7 +24,6 @@ public:
   static constexpr void setDisplay() {
     clearDisplayFunction = &DISPLAY::clearDisplay;
     blinkDisplayCursorFunction = &DISPLAY::blinkCursor;
-    writeStringToDisplayFunction = &DISPLAY::writeString;
     writeCharToDisplayFunction = &DISPLAY::writeChar;
     setCursorPositionFunction = &DISPLAY::setCursorPosition;
   }
@@ -46,7 +43,6 @@ private:
   static Joystick* joystick;
   static ClearDisplayFunctionPtr clearDisplayFunction;
   static BlinkDisplayCursorFunctionPtr blinkDisplayCursorFunction;
-  static WriteStringToDisplayFunctionPtr writeStringToDisplayFunction;
   static WriteCharToDisplayFunctionPtr writeCharToDisplayFunction;
   static SetCursorPositionFunctionPtr setCursorPositionFunction;
 };
