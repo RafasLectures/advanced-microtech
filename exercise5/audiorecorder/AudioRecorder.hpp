@@ -10,12 +10,14 @@
 namespace AdvancedMicrotech {
 class AudioRecorder {
 public:
+  using RecordEventCallback = void(*)(bool);
+
   static constexpr uint8_t MAX_SIZE_AUDIO_NAME = 6;
   static constexpr uint8_t MAX_NUM_AUDIOS = 3;
 
   void setFreeTime(std::chrono::seconds newFreeTime);
   bool createNewEmptyAudio(const char* newName);
-
+  void setRecordeEventCallback(RecordEventCallback newCallback);
   void startRecordingCurrentAudio();
   void stopRecordingCurrentAudio();
   void startPlayingCurrentAudio();
@@ -32,6 +34,7 @@ public:
   uint8_t getNumberOfStoredAudios() const;
 private:
   std::array<char, 5> freeTimeText;
+  RecordEventCallback recordEventCallback;
   volatile uint8_t selectedAudioIndex = 0;
   volatile uint8_t nextFreeIndex = 0;
   std::array<Audio,MAX_NUM_AUDIOS> audios;

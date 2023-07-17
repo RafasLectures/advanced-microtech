@@ -57,6 +57,12 @@ struct VLOCLK_T {
   }
 };
 
+struct ADCOSC_T {
+  static constexpr CLOCK_TYPE type = CLOCK_TYPE_ADCOSC;
+  static constexpr uint32_t frequency = 5000000;
+};
+
+
 template<const uint8_t CAPS, const uint16_t FREQUENCY = 32768, const bool DEBUG_RELEASE = false>
 struct LFXT1CLK_T {
   static constexpr CLOCK_SOURCE_TYPE type = CLOCK_SOURCE_TYPE_LFXT1;

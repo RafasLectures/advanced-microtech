@@ -20,8 +20,19 @@ bool AudioRecorder::createNewEmptyAudio(const char* newName) {
   return true;
 }
 
-void AudioRecorder::startRecordingCurrentAudio() {}
-void AudioRecorder::stopRecordingCurrentAudio() {}
+void AudioRecorder::setRecordeEventCallback(AudioRecorder::RecordEventCallback newCallback) {
+  recordEventCallback = newCallback;
+}
+void AudioRecorder::startRecordingCurrentAudio() {
+  if(recordEventCallback != nullptr) {
+    recordEventCallback(true);
+  }
+}
+void AudioRecorder::stopRecordingCurrentAudio() {
+  if(recordEventCallback != nullptr) {
+    recordEventCallback(false);
+  }
+}
 void AudioRecorder::startPlayingCurrentAudio() {}
 void AudioRecorder::stopPlayingCurrentAudio() {}
 

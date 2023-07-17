@@ -245,8 +245,6 @@ public:
  *
  */
 class IoHandleBase {
-  friend class Pwm;
-
 public:
   IoHandleBase() = delete;
   /**

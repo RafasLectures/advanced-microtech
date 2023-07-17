@@ -1,0 +1,102 @@
+/******************************************************************************
+* @file                    Pwm.hpp
+* @author                  Rafael Andrioli Bauer
+* @date                    14.12.2022
+* @matriculation number    5163344
+* @e-mail contact          abauer.rafael@gmail.com
+*
+* @brief   Header contains abstraction of PWM
+*
+* Description: In order to abstract the manipulation of registers and
+*              ease up maintainability of the application code, this header
+*              provides an easy interface to use the PWM
+******************************************************************************/
+#ifndef MICROTECH_PWM_HPP
+#define MICROTECH_PWM_HPP
+
+#include "Timer.hpp"
+#include "GPIOs.hpp"
+
+#include "IQmathLib.h"
+#include <msp430g2553.h>
+#include <chrono>
+#include <memory>
+
+namespace Microtech {
+/**
+* Class to abstract the PWM.
+*/
+template <typename TIMER, typename PIN>
+class PWM_T {
+public:
+ static constexpr void initialize() {
+   TIMER::initialize();
+   PIN::init();
+ }
+
+ /**
+  * Class to set the period of the PWM
+  * At the moment we are using the timer 0 as the timer for the PWM.
+  * So this method basically registers a task in the timer, and
+  * since the init configured TA0CTTL2, the compar value of the timer will
+  * be in the pwmOutput.
+  */
+ template<uint64_t periodValue, typename Duration = std::chrono::microseconds>
+ static void setPwmPeriod() {
+   (void)currentTask;
+   // Re-Register the task
+   TIMER::template registerTask<periodValue, Duration>(&currentTask);
+
+   // Update dutycycle, since comparator value changed.
+   updateDutyCycleRegister();
+
+
+ }
+
+ /**
+  * Method to set the PWM duty cycle.
+  * The duty cycle can be between 0 and 100.
+  */
+ static constexpr bool setDutyCycle(const _iq newDutyCycle) {
+   if (newDutyCycle > MAX_DUTY_CYCLE) {
+     return false;
+   }
+   dutyCycle = newDutyCycle;
+   updateDutyCycleRegister();
+   return true;
+ }
+
+ static constexpr void stop() {
+  TIMER::stop();
+ }
+
+ static constexpr void start() {
+  TIMER::start();
+ }
+
+
+private:
+ /**
+  * Method to configure the register responsible by the duty cycle.
+  */
+ static constexpr void updateDutyCycleRegister() {
+   volatile const _iq valueCCR0 = _IQ(*TIMER::REG_CCR0);  // Reads current "period" register
+   //  Calculates the value of the CCR2 based on the value of the current CCR0 value.
+   volatile const _iq valueCCR1 = _IQdiv(_IQmpy(valueCCR0, dutyCycle), MAX_DUTY_CYCLE);
+   *(TIMER::REG_CCR2) = _IQint(valueCCR1);
+ }
+
+ static constexpr _iq MAX_DUTY_CYCLE = _IQ(100.0);
+
+ static TaskHandler currentTask;
+ static volatile _iq dutyCycle;
+};
+
+template <typename TIMER, typename PIN>
+TaskHandler PWM_T<TIMER, PIN>::currentTask = TaskHandler(nullptr, true);
+
+template <typename TIMER, typename PIN>
+volatile _iq PWM_T<TIMER, PIN>::dutyCycle = 0;
+}  // namespace Microtech
+
+#endif  // MICROTECH_PWM_HPP
