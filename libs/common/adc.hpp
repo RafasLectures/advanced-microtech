@@ -189,6 +189,7 @@ private:
       case ClockDiv::ADC10CLK_DIV_8: return ADC10DIV_7;
 
     }
+    return ADC10DIV_0;
   }
 //  /**
 //   * Array that stores the conversion values from the ADC.

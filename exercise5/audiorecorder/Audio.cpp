@@ -14,25 +14,24 @@ Audio::Audio(const uint8_t* newName, uint32_t newAddress) : address(newAddress){
 }
 
 void Audio::play(void(*finishedCallback)()) noexcept {
-  playingFinishedCallback = finishedCallback;
+  finishedActionCallback = finishedCallback;
   memoryManager.play(this);
   // start PWM
 }
 void Audio::record(void(*finishedCallback)()) noexcept {
-  recordingFinishedCallback = finishedCallback;
+  finishedActionCallback = finishedCallback;
   memoryManager.record(this);
 }
 
-void Audio::recordingFinished() noexcept {
-  if(recordingFinishedCallback) {
-    recordingFinishedCallback();
+void Audio::finishedAction() noexcept {
+  if(finishedActionCallback) {
+    finishedActionCallback();
   }
 }
-
 uint32_t Audio::getAddress() const noexcept{
   return address;
 }
-const char* Audio::getName() const noexcept {
+const uint8_t* Audio::getName() const noexcept {
   return name.data();
 }
 

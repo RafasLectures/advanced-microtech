@@ -70,6 +70,17 @@ public:
    return true;
  }
 
+ /**
+  * Method to set the PWM duty cycle.
+  * The duty cycle can be between 0 and 100.
+  */
+ static constexpr void setNextCCR2Val(const uint16_t newNextCCR2) {
+   nextCCR2 = newNextCCR2;
+ }
+
+ static constexpr uint16_t getCCR0() {
+   return *TIMER::REG_CCR0;
+ }
  static constexpr void stop() {
   TIMER::stop();
  }
@@ -90,13 +101,20 @@ private:
    *(TIMER::REG_CCR2) = _IQint(valueCCR1);
  }
 
+ static constexpr void updateCCR2() {
+   *(TIMER::REG_CCR2) = nextCCR2;
+ }
+
   static constexpr void handleIsr() {
-   updateDutyCycleRegister();
+   *(TIMER::REG_CCR2) = nextCCR2;
+//   updateCCR2();
+   isrCallback();
   }
 
  static TaskHandler currentTask;
  static volatile _iq dutyCycle;
  static IsrCallback isrCallback;
+ static uint16_t nextCCR2;
 };
 
 template <typename TIMER, typename PIN>
@@ -104,6 +122,8 @@ TaskHandler PWM_T<TIMER, PIN>::currentTask = TaskHandler(&PWM_T<TIMER, PIN>::han
 
 template <typename TIMER, typename PIN>
 volatile _iq PWM_T<TIMER, PIN>::dutyCycle = 0;
+template <typename TIMER, typename PIN>
+uint16_t PWM_T<TIMER, PIN>::nextCCR2 = 0;
 
 template <typename TIMER, typename PIN>
 typename PWM_T<TIMER, PIN>::IsrCallback PWM_T<TIMER, PIN>::isrCallback = nullptr;

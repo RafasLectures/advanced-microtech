@@ -120,7 +120,11 @@ public:
     while (!USCI::tx_irq_pending()) {
     }
     *USCI::TXBUF = 0xFF;  // Write dummy data to generate clock output
-
+    if(length >= 2) {
+      while (!USCI::tx_irq_pending()) {
+      }
+      *USCI::TXBUF = 0xFF;  // Write dummy data to generate clock output
+    }
     // Wait until all data has been written from the RX buffer into the pointer
     while (transferCount > 0) {
     }
@@ -129,6 +133,37 @@ public:
     }
     USCI::disable_rx_tx_irq();
     transferBuffer = nullptr;
+  }
+
+  static constexpr void asyncRead(uint8_t length, uint8_t* data) {
+    // Make sure the bus is not busy before manipulating the buffer variables.
+//    while (busy()) {
+//    }
+    transferCount = length;
+    transferBuffer = data;
+
+    USCI::clear_rx_irq();
+    USCI::disable_rx_tx_irq();
+    USCI::enable_rx_irq();
+
+    // Make sure the TX buffer is ready to accept new data.
+    while (!USCI::tx_irq_pending()) {
+    }
+    *USCI::TXBUF = 0xFF;  // Write dummy data to generate clock output
+    if(length >= 2) {
+      while (!USCI::tx_irq_pending()) {
+      }
+      *USCI::TXBUF = 0xFF;  // Write dummy data to generate clock output
+    }
+
+//    // Wait until all data has been written from the RX buffer into the pointer
+//    while (transferCount > 0) {
+//    }
+//
+//    while (busy()) {
+//    }
+//    USCI::disable_rx_tx_irq();
+//    transferBuffer = nullptr;
   }
 
   /**
@@ -172,6 +207,7 @@ private:
       // If the transfer count is 0, it means we already the transfer has been completed,
       // so we just disable the interruption and do an early return.
       USCI::disable_tx_irq();
+      USCI::disable_rx_tx_irq();
       return;
     }
     // The UCx0TXIFG is set when TXBUF is ready to send the next data, so if the interruption happened, it means
@@ -187,22 +223,27 @@ private:
       // so we just disable the interruption and do an early return.
       USCI::clear_rx_irq();
       USCI::disable_rx_irq();
+      USCI::disable_rx_tx_irq();
       return;
+    }
+
+    if (transferCount > 2) {
+      *USCI::TXBUF = 0xFF;  // Write dummy data to generate clock output
     }
     // The UCx0RXIFG is set when RXBUF has received a complete character, so there has been a RX transfer
     // Put current value from RXBUF to transferBuffer and point to the next transferBuffer position.
     *transferBuffer++ = *USCI::RXBUF;
     transferCount--;  // Decrease transferCount, since one more transfer has been done.
-    if (transferCount == 0) {
-      // If the transfer count is 0, it means we already the transfer has been completed,
-      // so we just disable the interruption.
-      USCI::disable_rx_irq();
-    } else {
+
+    //if (transferCount > 0) {
       // Writes dummy data to get more clock
-      while (!USCI::tx_irq_pending()) {
-      }
-      *USCI::TXBUF = 0xFF;  // Write dummy data to generate clock output
-    }
+
+//    } else {
+      // Writes dummy data to get more clock
+//      while (!USCI::tx_irq_pending()) {
+//      }
+//      *USCI::TXBUF = 0xFF;  // Write dummy data to generate clock output
+//    }
     USCI::clear_rx_irq();
   }
 

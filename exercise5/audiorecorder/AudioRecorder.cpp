@@ -27,35 +27,16 @@ bool AudioRecorder::createNewEmptyAudio(const uint8_t* newName) {
   return true;
 }
 
-//void AudioRecorder::setRecordEventCallback(AudioRecorder::RecordEventCallback newCallback) {
-//  recordEventCallback = newCallback;
-//}
-//void AudioRecorder::setPlayEventCallback(AudioRecorder::PlayEventCallback newCallback) {
-//  playEventCallback = newCallback;
-//}
 void AudioRecorder::startRecordingCurrentAudio(void(*finishedCallback)()) {
-//  if(recordEventCallback != nullptr) {
-//    recordEventCallback(true);
-//  }
   audios[selectedAudioIndex].record(finishedCallback);
 }
-void AudioRecorder::stopRecordingCurrentAudio() {
-//  if(recordEventCallback != nullptr) {
-//    recordEventCallback(false);
-//  }
-  //audios[selectedAudioIndex].record();
-}
+void AudioRecorder::stopRecordingCurrentAudio() {}
 void AudioRecorder::startPlayingCurrentAudio(void(*finishedCallback)()) {
   audios[selectedAudioIndex].play(finishedCallback);
 }
-void AudioRecorder::stopPlayingCurrentAudio() {
-  //audios[selectedAudioIndex].play();
-}
+void AudioRecorder::stopPlayingCurrentAudio() {}
 
 void AudioRecorder::eraseAllAudios() {
-  for(auto& audio : audios) {
-    //audio.erase();
-  }
   nextFreeIndex = 0;
   selectedAudioIndex = 0;
   memoryManager.eraseAll();
@@ -82,9 +63,9 @@ bool AudioRecorder::selectPreviousAudio() {
 const char* AudioRecorder::getFreeTimeText() const {
   return freeTimeText.data();
 }
-const char* AudioRecorder::getCurrentAudioName() const {
+const uint8_t* AudioRecorder::getCurrentAudioName() const {
   if(nextFreeIndex == 0) {
-    return "None";
+    return (uint8_t*)"None";
   }
   return audios.at(selectedAudioIndex).getName();
 }
@@ -93,6 +74,7 @@ uint8_t AudioRecorder::getNumberOfStoredAudios() const{
   return nextFreeIndex;
 }
 void AudioRecorder::addAudio(const uint8_t* name, uint32_t address) {
+  selectedAudioIndex = nextFreeIndex;
   audios.at(nextFreeIndex++) = Audio(name, address);
 }
 }

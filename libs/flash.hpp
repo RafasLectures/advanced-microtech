@@ -66,7 +66,7 @@ public:
   }
 
   static constexpr void keepReading(uint16_t length, uint8_t* data) {
-    SPI::read(length, data);
+    SPI::asyncRead(length, data);
   }
 
   static constexpr void finishRead() {

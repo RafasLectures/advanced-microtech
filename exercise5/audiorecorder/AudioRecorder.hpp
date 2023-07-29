@@ -16,7 +16,7 @@ public:
   using PlayEventCallback = void(*)(bool);
 
   static constexpr uint8_t MAX_SIZE_AUDIO_NAME = 6;
-  static constexpr uint8_t MAX_NUM_AUDIOS = 3;
+  static constexpr uint8_t MAX_NUM_AUDIOS = 4;
 
   void initialize();
   void setFreeTime(std::chrono::seconds newFreeTime);
@@ -44,7 +44,7 @@ public:
   bool selectPreviousAudio();
 
   const char* getFreeTimeText() const;
-  const char* getCurrentAudioName() const;
+  const uint8_t* getCurrentAudioName() const;
 
   uint8_t getNumberOfStoredAudios() const;
 

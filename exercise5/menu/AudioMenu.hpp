@@ -12,7 +12,7 @@ public:
 
   enum class MenuSelection { PLAY = 0, RECORD, BACK };
   static const char* getTitle() {
-    return getAudioRecorderPtr()->getCurrentAudioName();
+    return (const char*)getAudioRecorderPtr()->getCurrentAudioName();
   }
   static constexpr const char* getMenuText() {
     return "      \x7F\x7ENav \x02Sel\n\xDBPlay \xDBRec \xDB\Back";

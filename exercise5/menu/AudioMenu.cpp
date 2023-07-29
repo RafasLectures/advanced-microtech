@@ -12,7 +12,7 @@ void AudioMenu::clearTitle() {
 
 void AudioMenu::showItems() {
   MenuItem::setDisplayCursorPosition(0, 0);
-  MenuItem::writeStringToDisplay(getAudioRecorderPtr()->getCurrentAudioName());
+  MenuItem::writeStringToDisplay((const char*)getAudioRecorderPtr()->getCurrentAudioName());
   changeMenuSelection(MenuSelection::PLAY);
   MenuItem::blinkDisplayCursor(true);
 }

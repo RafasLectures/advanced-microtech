@@ -39,16 +39,16 @@ public:
   void play(void(*finishedCallback)()) noexcept;
   void record(void(*finishedCallback)()) noexcept;
 
-  void recordingFinished() noexcept;
+  void finishedAction() noexcept;
   uint32_t getAddress() const noexcept;
-  const char* getName() const noexcept;
+  const uint8_t* getName() const noexcept;
 
 private:
-  std::array<char, 5> name {0, 0, 0, 0, 0};
+  std::array<uint8_t, 5> name {0, 0, 0, 0, 0};
   uint32_t address;
 
   static MemoryManager memoryManager;
-  FinishedCallback recordingFinishedCallback;
+  FinishedCallback finishedActionCallback;
   FinishedCallback playingFinishedCallback;
 //  static ControlCallback startADC;
 //  static ControlCallback stopADC;
