@@ -11,7 +11,8 @@ namespace AdvancedMicrotech {
 class Audio {
 public:
   using FinishedCallback = void(*)();
-  static constexpr uint32_t LENGTH = 0x07FFFF;
+  static constexpr uint8_t MAX_SIZE_AUDIO_NAME = 6;
+
   Audio() = default;
   Audio(const uint8_t* newName, uint32_t newAddress);
 
@@ -24,18 +25,6 @@ public:
     memoryManager.play = &MEMORY_MANAGER_IMPL::play;
   }
 
-//  template <typename ADC>
-//  static constexpr void setADCFunctions() {
-//    startADC = &ADC::startConversion;
-//    stopADC = &ADC::stopConversion;
-//  }
-//
-//  template <typename PWM>
-//  static constexpr void setPWMFunctions() {
-//    startPWM = &PWM::start;
-//    stopPWM = &PWM::stop;
-//  }
-
   void play(void(*finishedCallback)()) noexcept;
   void record(void(*finishedCallback)()) noexcept;
 
@@ -44,16 +33,11 @@ public:
   const uint8_t* getName() const noexcept;
 
 private:
-  std::array<uint8_t, 5> name {0, 0, 0, 0, 0};
+  std::array<uint8_t, MAX_SIZE_AUDIO_NAME> name {0};
   uint32_t address;
 
   static MemoryManager memoryManager;
   FinishedCallback finishedActionCallback;
-  FinishedCallback playingFinishedCallback;
-//  static ControlCallback startADC;
-//  static ControlCallback stopADC;
-//  static ControlCallback startPWM;
-//  static ControlCallback stopPWM;
 
 };
 }

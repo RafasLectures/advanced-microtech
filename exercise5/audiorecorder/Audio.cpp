@@ -16,7 +16,6 @@ Audio::Audio(const uint8_t* newName, uint32_t newAddress) : address(newAddress){
 void Audio::play(void(*finishedCallback)()) noexcept {
   finishedActionCallback = finishedCallback;
   memoryManager.play(this);
-  // start PWM
 }
 void Audio::record(void(*finishedCallback)()) noexcept {
   finishedActionCallback = finishedCallback;

@@ -1,0 +1,34 @@
+@startuml
+
+
+class MenuItem
+note top of MenuItem
+That's where is the hook
+to the display functions
+endnote
+class Menu <CHILD>
+class AudioRecorder
+class Audio
+class MemoryManager
+
+note top of MemoryManager
+That's where is the hook
+to the hardware
+endnote
+
+MenuItem <|-- Menu
+Menu <|-- MainMenu
+Menu <|-- PlayAudioMenu
+note top of PlayAudioMenu
+ Every other menu is
+ on this level
+endnote
+MenuItem --left- DISPLAY : uses
+MenuItem o--right- AudioRecorder
+AudioRecorder *-down- MemoryManager
+AudioRecorder *-down- Audio
+MemoryManager -- FLASH : uses
+MemoryManager -- ADC : uses
+MemoryManager -- PWM : uses
+
+@enduml

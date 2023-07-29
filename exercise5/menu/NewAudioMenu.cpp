@@ -3,7 +3,7 @@
 
 namespace AdvancedMicrotech {
 
-StringBuilder<AudioRecorder::MAX_SIZE_AUDIO_NAME> NewAudioMenu::newAudioName;
+StringBuilder<Audio::MAX_SIZE_AUDIO_NAME> NewAudioMenu::newAudioName;
 
 void NewAudioMenu::clearTitle() {
   MenuItem::setDisplayCursorPosition(X_POS, Y_POS);

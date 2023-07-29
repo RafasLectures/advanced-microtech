@@ -1,8 +1,8 @@
 @startuml
 'https://plantuml.com/activity-diagram-beta
 |a| Infinite Loop
-|b| Timer Interrupt (20 ms)
-|c| Button Interrupt
+|b| PWM Interrupt
+|c| ADC Interrupt
 
 fork
 |a|
@@ -10,23 +10,38 @@ fork
 start
 
 :Initialize Microcontroller and Peripherals;
-floating note
-ADC is configured to use DTC, so it
-is always sampling all channels (all in hardware,
-no need to sample in software).
-Time for one sample in one channel is 4.2us.
-Using DTC if I sample all channels it takes 33.6us.
-So there will be a new value
-for one specific channel in a buffer every 33.6us.
-That should give enough accuracy.
-endnote
+
 partition Infinite loop{
 
 repeat
- :Sample external ADC
- to get joystick values;
- :Pass ADC to joystick to know
- which event was received;
+ :Triggers read/write from/to flash;
+ if(transferring data) then (false)
+     :Sample external ADC
+      to get joystick values;
+      :Pass ADC to joystick to know
+      which event was received;
+      :Notify menu in case of event;
+      :Notify memory manager if action
+      record or play;
+ else (true)
+     if (Data ready) then (true)
+        if(Recording) then (true)
+             :Trigger write of
+             half of buffer to flash;
+        else (false)
+            :Trigger read of next
+             data point from flash;
+            :Calculate value of next PWM
+            duty cycle;
+        endif
+        :In case transfer is over
+         stop PWM/ADC that
+         have the interrupt;
+        :Reset notification variable;
+     else (false)
+    endif
+endif
+
 repeat while (true) is (true)
 
 }
@@ -35,57 +50,32 @@ fork again
 |b|
 -[hidden]->
 start
-partition "Process of Oscilloscope" {
-if (Time to execute Osciloscope) then (true)
-    :Get raw value from ADC;
-    :Send new ADC reading via Serial port;
-else (false)
-endif
-}
-
-partition Sample of PB1-4{
-:Sample button values from shift register;
-if(Button was pressed) then (true)
-:Based on pressed button set Signal Generator to
-switch waveform or change frequency;
-else (false)
-endif
-}
-partition Process of Signal generator{
-if (Time to execute Signal Generator) then (true)
-    switch (Signal shape)
-    case (sin)
-        :Generate new sine output;
-    case (trap)
-        :Generate new trapezoidal output;
-    case (rect)
-        :Generate new rect output;
-    endswitch
-    ->//Values between 0 and 100.0//;
-    :Multiply result by configured maximum amplitude;
-    ->//Result between 0 and 100.0//;
-    :Calculate value to be written in PWM register to set duty cycle
-    based on current PWM frequency using rate of previous multiplication;
-    floating note left
-    The raw signal will always go from 0 to 100.
-    The final signal amplitude (after amplitude set by user)
-    will always go from 0 to 1.
-    Then we just need to set the duty cycle
-    which can go from 0 to 100%
-    endnote
-    :Set new PWM duty cycle;
-else (false)
-endif
-}
+:Update duty cycle;
+:Notify infinite loop of
+that duty cycle was updated
+and now waiting for new
+duty cycle;
 stop
 
 fork again
 |c|
 -[hidden]->
 start
-:Identify pressed button;
-:Based on pressed button set Signal Generator to
-increase or decrease amplitude;
+floating note
+ADC is configured to use DTC, so it
+is always sampling and writing to a buffer (all in hardware,
+no need to sample in software).
+Time for one sample is 77us.
+The buffer has 50 positions and
+the ADC is configured to have two-block
+conversions. So after half of the buffer has been filled
+the ADC gives an interrupt
+endnote
+
+:Notify infinite loop of
+ that half of the buffer
+ has been filled with new
+ data.;
 stop
 
 

@@ -1,0 +1,44 @@
+@startuml
+'https://plantuml.com/activity-diagram-beta
+|a| Infinite Loop
+|b| PWM Interrupt
+
+fork
+|a|
+-[hidden]->
+start
+
+:...;
+
+partition Infinite loop{
+
+repeat
+ :Wait until allowed to calculate next
+ duty cycle;
+:Trigger read of next
+ data point from flash;
+:Calculate value of next PWM
+duty cycle;
+:In case transfer is over
+ stop PWM/ADC that
+ have the interrupt;
+:Reset notification variable;
+
+
+repeat while (true) is (true)
+
+}
+stop
+fork again
+|b|
+-[hidden]->
+start
+:Update duty cycle;
+:Notify infinite loop of
+that duty cycle was updated
+and now waiting for new
+duty cycle;
+stop
+
+
+@enduml

@@ -10,13 +10,12 @@
 
 namespace AdvancedMicrotech {
 
-template<typename FLASH, typename ADC, typename EXTERN_ADC_DAC, typename PWM, typename INT_PIN, typename INT_PIN2>
+template<typename FLASH, typename ADC, typename EXTERN_ADC_DAC, typename PWM>
 class MemoryManagerImpl {
 public:
   // Header composition:
   // SIGNATURE(1B) + SONG NAME (5B)
-
-  static constexpr uint32_t HEADER_SIZE = 1 + AudioRecorder::MAX_SIZE_AUDIO_NAME;
+  static constexpr uint32_t HEADER_SIZE = 1 + Audio::MAX_SIZE_AUDIO_NAME;
   static constexpr uint8_t HEADER_SIGNATURE = 0xA5;
   static_assert(AudioRecorder::MAX_NUM_AUDIOS <= 4, "Number of audios is more than 4, memory organization must be reviewed");
   static constexpr uint32_t SLOT_ADDRESS_OFFSET = (1L << 19);
@@ -31,8 +30,6 @@ public:
     PWM::setIsrCallback(&handlePWMIsr);
     FLASH::init();
 
-    INT_PIN::init();
-    INT_PIN2::init();
     audioRecorder = newAudioRecorder;
     latestAvailableSongSlot = 0;
     selectAudio(nullptr);
@@ -51,7 +48,7 @@ public:
   static constexpr void record(Audio* audio) {
     selectAudio(audio);
     transferingData = true;
-    writeAction = true;
+    recording = true;
 
     FLASH::init();
     uint32_t audioAddress = currentAudio->getAddress();
@@ -66,7 +63,7 @@ public:
   static constexpr void play(Audio* audio) {
     selectAudio(audio);
     transferingData = true;
-    writeAction = false;
+    recording = false;
     dutyCycleConstant = _IQdiv(_IQ(PWM::getCCR0()), _IQ(1023));
 
     FLASH::init();
@@ -75,6 +72,7 @@ public:
     FLASH::keepReading(2, (uint8_t*)&buffer[0]);
     PWM::start();
   }
+
   // Returns the song data address
   static constexpr uint32_t addSongToNextSlot(const uint8_t* name) {
     if(latestAvailableSongSlot > AudioRecorder::MAX_NUM_AUDIOS) {
@@ -96,7 +94,7 @@ public:
       return transferingData;
     }
     bool finishedAction = false;
-    if(writeAction) {
+    if(recording) {
       finishedAction = recordAction();
     } else {
       finishedAction = playAction();
@@ -109,14 +107,17 @@ public:
     transferDataReady = false;
     return transferingData;
   };
+
 private:
   static constexpr void findStoredSongsInFlash() {
+    // Loops through memory and check if the song headers are available
     for(uint32_t songSlot = 0; songSlot < AudioRecorder::MAX_NUM_AUDIOS; songSlot++) {
       std::array<uint8_t, HEADER_SIZE> header{};
       const uint32_t headerAddress = songSlot * SLOT_ADDRESS_OFFSET;
       FLASH::read(headerAddress, HEADER_SIZE, header.data());
       // Check if header signature is correct
       if(header[0] != HEADER_SIGNATURE) {
+        // if the first signature is wrong, we consider the memory is corrupted, so clean it up
         if(songSlot == 0) {
           eraseAll();
           return;
@@ -129,10 +130,20 @@ private:
     }
   }
 
+  /**
+   * Stores a song header in the flash
+   * @param address Address to store
+   * @param name Name of the song
+   * @return
+   */
   static constexpr void writeSongHeader(uint32_t address, const uint8_t* name) {
     std::array<uint8_t,HEADER_SIZE> songHeader{HEADER_SIGNATURE, name[0], name[1],  name[2],  name[3],  name[4]};
     FLASH::write(address, HEADER_SIZE, songHeader.data());
   }
+  /**
+   * Action to be executed when recording
+   * @return if it finished or not
+   */
   static constexpr bool recordAction() {
     constexpr uint16_t HALF_BUFFER = sizeof(buffer) / 2;
     // Initializes the length to be written by checking if half of the buffer would fit within the interval.
@@ -150,13 +161,16 @@ private:
     return finishedTransfer;
   }
 
+  /**
+   * Action to be executed when playing
+   * @return if it finished or not
+   */
   static constexpr bool playAction() {
     constexpr uint16_t LENGTH = 2;
     constexpr uint16_t BUFFER_INDEX = 0;
 
-    INT_PIN2::set_high();
     const _iq newOutput = _IQ(buffer[BUFFER_INDEX]);
-//    // Calculates the new duty cycle
+    // Calculates the new duty cycle
     const uint16_t dutyCyclePWM = _IQint(_IQmpy(newOutput, dutyCycleConstant));
     PWM::setNextCCR2Val(dutyCyclePWM);
 
@@ -169,7 +183,6 @@ private:
       FLASH::finishRead();
     }
     transferDataReady = false;
-    INT_PIN2::set_low();
     return finishedTransfer;
   }
 
@@ -187,46 +200,47 @@ private:
 
   static constexpr void handleWriteToFlashIRQ() {
     transferDataReady = true;
-    INT_PIN::toggle();
   }
   static constexpr void handlePWMIsr() {
     transferDataReady = true;
-    INT_PIN::toggle();
   }
 
   static volatile uint16_t buffer[WRITE_BUFFER_SIZE] ;
+  static volatile bool transferDataReady;
+
   static uint32_t latestAvailableSongSlot;
-  static uint32_t transferAddress;
-  static uint32_t lastTransferAddress;
+
   static AudioRecorder* audioRecorder;
   static Audio* currentAudio;
-  static volatile bool transferDataReady;
+
+  static uint32_t transferAddress;
+  static uint32_t lastTransferAddress;
   static bool transferingData;
-  static bool writeAction;
+  static bool recording;
   static _iq dutyCycleConstant;
 };
-template<typename FLASH, typename ADC, typename EXTERN_ADC_DAC, typename PWM, typename INT_PIN, typename INT_PIN2>
-volatile uint16_t MemoryManagerImpl<FLASH, ADC, EXTERN_ADC_DAC, PWM, INT_PIN, INT_PIN2>::buffer[MemoryManagerImpl<FLASH, ADC, EXTERN_ADC_DAC, PWM, INT_PIN, INT_PIN2>::WRITE_BUFFER_SIZE] ={0};
+template<typename FLASH, typename ADC, typename EXTERN_ADC_DAC, typename PWM>
+volatile uint16_t MemoryManagerImpl<FLASH, ADC, EXTERN_ADC_DAC, PWM>::buffer[MemoryManagerImpl<FLASH, ADC, EXTERN_ADC_DAC, PWM>::WRITE_BUFFER_SIZE] ={0};
 
 
-template<typename FLASH, typename ADC, typename EXTERN_ADC_DAC, typename PWM, typename INT_PIN, typename INT_PIN2>
-uint32_t MemoryManagerImpl<FLASH, ADC, EXTERN_ADC_DAC, PWM, INT_PIN, INT_PIN2>::latestAvailableSongSlot = 0;
-template<typename FLASH, typename ADC, typename EXTERN_ADC_DAC, typename PWM, typename INT_PIN, typename INT_PIN2>
-uint32_t MemoryManagerImpl<FLASH, ADC, EXTERN_ADC_DAC, PWM, INT_PIN, INT_PIN2>::transferAddress = 0;
-template<typename FLASH, typename ADC, typename EXTERN_ADC_DAC, typename PWM, typename INT_PIN, typename INT_PIN2>
-uint32_t MemoryManagerImpl<FLASH, ADC, EXTERN_ADC_DAC, PWM, INT_PIN, INT_PIN2>::lastTransferAddress = 0;
-template<typename FLASH, typename ADC, typename EXTERN_ADC_DAC, typename PWM, typename INT_PIN, typename INT_PIN2>
-AudioRecorder* MemoryManagerImpl<FLASH, ADC, EXTERN_ADC_DAC, PWM, INT_PIN, INT_PIN2>::audioRecorder = nullptr;
-template<typename FLASH, typename ADC, typename EXTERN_ADC_DAC, typename PWM, typename INT_PIN, typename INT_PIN2>
-Audio* MemoryManagerImpl<FLASH, ADC, EXTERN_ADC_DAC, PWM, INT_PIN, INT_PIN2>::currentAudio = nullptr;
-template<typename FLASH, typename ADC, typename EXTERN_ADC_DAC, typename PWM, typename INT_PIN, typename INT_PIN2>
-volatile bool MemoryManagerImpl<FLASH, ADC, EXTERN_ADC_DAC, PWM, INT_PIN, INT_PIN2>::transferDataReady = false;
-template<typename FLASH, typename ADC, typename EXTERN_ADC_DAC, typename PWM, typename INT_PIN, typename INT_PIN2>
-bool MemoryManagerImpl<FLASH, ADC, EXTERN_ADC_DAC, PWM, INT_PIN, INT_PIN2>::transferingData = false;
-template<typename FLASH, typename ADC, typename EXTERN_ADC_DAC, typename PWM, typename INT_PIN, typename INT_PIN2>
-bool MemoryManagerImpl<FLASH, ADC, EXTERN_ADC_DAC, PWM, INT_PIN, INT_PIN2>::writeAction = false;
-template<typename FLASH, typename ADC, typename EXTERN_ADC_DAC, typename PWM, typename INT_PIN, typename INT_PIN2>
-_iq MemoryManagerImpl<FLASH, ADC, EXTERN_ADC_DAC, PWM, INT_PIN, INT_PIN2>::dutyCycleConstant = 0;
+template<typename FLASH, typename ADC, typename EXTERN_ADC_DAC, typename PWM>
+uint32_t MemoryManagerImpl<FLASH, ADC, EXTERN_ADC_DAC, PWM>::latestAvailableSongSlot = 0;
+template<typename FLASH, typename ADC, typename EXTERN_ADC_DAC, typename PWM>
+uint32_t MemoryManagerImpl<FLASH, ADC, EXTERN_ADC_DAC, PWM>::transferAddress = 0;
+template<typename FLASH, typename ADC, typename EXTERN_ADC_DAC, typename PWM>
+uint32_t MemoryManagerImpl<FLASH, ADC, EXTERN_ADC_DAC, PWM>::lastTransferAddress = 0;
+template<typename FLASH, typename ADC, typename EXTERN_ADC_DAC, typename PWM>
+AudioRecorder* MemoryManagerImpl<FLASH, ADC, EXTERN_ADC_DAC, PWM>::audioRecorder = nullptr;
+template<typename FLASH, typename ADC, typename EXTERN_ADC_DAC, typename PWM>
+Audio* MemoryManagerImpl<FLASH, ADC, EXTERN_ADC_DAC, PWM>::currentAudio = nullptr;
+template<typename FLASH, typename ADC, typename EXTERN_ADC_DAC, typename PWM>
+volatile bool MemoryManagerImpl<FLASH, ADC, EXTERN_ADC_DAC, PWM>::transferDataReady = false;
+template<typename FLASH, typename ADC, typename EXTERN_ADC_DAC, typename PWM>
+bool MemoryManagerImpl<FLASH, ADC, EXTERN_ADC_DAC, PWM>::transferingData = false;
+template<typename FLASH, typename ADC, typename EXTERN_ADC_DAC, typename PWM>
+bool MemoryManagerImpl<FLASH, ADC, EXTERN_ADC_DAC, PWM>::recording = false;
+template<typename FLASH, typename ADC, typename EXTERN_ADC_DAC, typename PWM>
+_iq MemoryManagerImpl<FLASH, ADC, EXTERN_ADC_DAC, PWM>::dutyCycleConstant = 0;
 
 }
 #endif  // ADVANVED_MICROTECH_MEMORYMANAGERIMPL_HPP

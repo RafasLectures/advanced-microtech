@@ -12,10 +12,6 @@ namespace AdvancedMicrotech {
 
 class AudioRecorder {
 public:
-  using RecordEventCallback = void(*)(bool);
-  using PlayEventCallback = void(*)(bool);
-
-  static constexpr uint8_t MAX_SIZE_AUDIO_NAME = 6;
   static constexpr uint8_t MAX_NUM_AUDIOS = 4;
 
   void initialize();
@@ -29,9 +25,6 @@ public:
     memoryManager.play = &MEMORY_MANAGER_IMPL::play;
   }
   bool createNewEmptyAudio(const uint8_t* newName);
-
-//  void setRecordEventCallback(AudioRecorder::RecordEventCallback newCallback);
-//  void setPlayEventCallback(AudioRecorder::PlayEventCallback newCallback);
 
   void startRecordingCurrentAudio(void(*finishedCallback)());
   void stopRecordingCurrentAudio();
@@ -51,8 +44,6 @@ public:
   void addAudio(const uint8_t* name, uint32_t address);
 private:
   std::array<char, 5> freeTimeText{};
-//  RecordEventCallback recordEventCallback = nullptr;
-//  PlayEventCallback playEventCallback = nullptr;
   static MemoryManager memoryManager;
   volatile uint8_t selectedAudioIndex = 0;
   volatile uint8_t nextFreeIndex = 0;

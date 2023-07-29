@@ -1,0 +1,55 @@
+@startuml
+'https://plantuml.com/activity-diagram-beta
+|a| Infinite Loop
+|c| ADC Interrupt
+
+fork
+|a|
+-[hidden]->
+start
+: ...;
+
+:...;
+
+partition Infinite loop{
+
+repeat
+ :Wait until data available;
+ :Triggers read/write from/to flash;
+
+ :Write of half of buffer to flash;
+
+:In case transfer is over
+ stop PWM/ADC that
+ have the interrupt;
+:Reset notification variable;
+
+
+repeat while (true) is (true)
+
+}
+stop
+
+fork again
+|c|
+-[hidden]->
+start
+floating note
+ADC is configured to use DTC, so it
+is always sampling and writing to a buffer (all in hardware,
+no need to sample in software).
+Time for one sample is 77us.
+The buffer has 50 positions and
+the ADC is configured to have two-block
+conversions. So after half of the buffer has been filled
+the ADC gives an interrupt
+endnote
+
+:Notify infinite loop of
+ that half of the buffer
+ has been filled with new
+ data.;
+stop
+
+
+@enduml

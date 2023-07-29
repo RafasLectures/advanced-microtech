@@ -29,7 +29,7 @@ public:
   static void specificEnterAction();
 
 private:
-  static StringBuilder<AudioRecorder::MAX_SIZE_AUDIO_NAME> newAudioName;
+  static StringBuilder<Audio::MAX_SIZE_AUDIO_NAME> newAudioName;
 };
 }  // namespace AdvancedMicrotech
 #endif  // ADVANVED_MICROTECH_NEWAUDIOMENU_HPP

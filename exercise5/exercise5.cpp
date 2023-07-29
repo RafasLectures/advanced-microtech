@@ -3,7 +3,7 @@
  * @author  Rafael Andrioli Bauer
  * @date    23.06.2023
  *
- * @brief   Exercise 4 - SPI
+ * @brief   Exercise 5 - Audio recorder
  *
  * Pin connections: CON5:D4-CON5:D7 <-> CON3:P2.0-CON3:P2.3
  *                  CON5:RS <-> CON4:P3.0
@@ -23,6 +23,8 @@
  *                  CON4:P3.4 <-> CON9:F_/CS
  *                  CON4:P3.3 <-> CON9:F_/HOLD
  *                  CON4:P3.5 <-> CON9:F_/WP
+ *                  CON4:P3.6 <-> CON8:PWM
+ *                  CON2:P1.0 <-> CON8:MIC
  *
  * @note    The project was exported using CCS 12.3.0.
  *          UART is disabled within templateEMP.h in order to avoid
@@ -104,15 +106,14 @@ typedef Microtech::PWM_T<PwmTimerA0, PWM_OUTPUT> PWM;
 constexpr LcdCustomCharacter ARROW_UP_DOWN{{0x04, 0x0E, 0x15, 0x04, 0x04, 0x15, 0x0E, 0x04}, 0x01};
 constexpr LcdCustomCharacter ENTER{{0x01, 0x01, 0x01, 0x05, 0x09, 0x1F, 0x08, 0x04}, 0x02};
 
-typedef GPIO_OUTPUT_T<3, 7, LOW> INT_DEBUG;  // Setting P3.4 as output and initial value is 1
-typedef GPIO_OUTPUT_T<2, 4, LOW> INT_DEBUG2;  // Setting P3.4 as output and initial value is 1
-typedef AdvancedMicrotech::MemoryManagerImpl<FLASH, ADC, ADC_DAC, PWM, INT_DEBUG, INT_DEBUG2> memoryManager;
-
-//void getDataFromAdc();
+//typedef GPIO_OUTPUT_T<3, 7, LOW> INT_DEBUG;
+//typedef GPIO_OUTPUT_T<2, 4, LOW> INT_DEBUG2;
+// Memory manager, used to interface with flash, adc and pwm
+typedef AdvancedMicrotech::MemoryManagerImpl<FLASH, ADC, ADC_DAC, PWM> memoryManager;
 
 AudioRecorder audioRecorder;
 
-// Instantiation of welcome message and joystick classes
+// Instantiation of joystick classe
 Joystick joystick;
 
 int main(void) {
@@ -132,7 +133,6 @@ int main(void) {
 
   // Initialize internal ADC
   ADC::initialize();
-  //ADC::startConversion();
 
   DIGI_POTI::initialize();
   DIGI_POTI::setResistance(240);
@@ -156,9 +156,6 @@ int main(void) {
   AudioRecorder::setMemoryManager<memoryManager>();
   Audio::setMemoryManager<memoryManager>();
   audioRecorder.initialize();
-//  audioRecorder.setRecordEventCallback(&recordEvent);
-//  audioRecorder.setPlayEventCallback(&playEvent);
-
 
   ADC_DAC::initialize();
   MainMenu::select();
@@ -167,15 +164,11 @@ int main(void) {
   std::array<uint8_t,ADC_DAC::NUMBER_AD_CHANNELS> adcValues{0, 0, 0, 0};  // Buffer used to retrieve the ADC values
   while (1) {
     if(!memoryManager::executeAction()) {
+      // First add the delay, to not get stuck in case record or play was selected.
+      // delay needed for "debouncing"
       delay_us(300);
       ADC_DAC::read(adcValues.data());
       joystick.evaluateJoystick(&adcValues);
     }
-
-
-    // write ADC values from buffer to flash memory
-    // or
-    // read ADC values from flash into buffer and write values from buffer to PWM
-
   }
 }
