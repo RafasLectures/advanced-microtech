@@ -3,6 +3,12 @@
 
 namespace AdvancedMicrotech {
 
+MemoryManager AudioRecorder::memoryManager;
+
+void AudioRecorder::initialize() {
+  memoryManager.initialize(this);
+}
+
 void AudioRecorder::setFreeTime(std::chrono::seconds newFreeTime) {
   const std::chrono::minutes minutes = std::chrono::duration_cast<std::chrono::minutes>(newFreeTime);
   newFreeTime -= minutes;
@@ -12,36 +18,47 @@ void AudioRecorder::setFreeTime(std::chrono::seconds newFreeTime) {
 }
 
 
-bool AudioRecorder::createNewEmptyAudio(const char* newName) {
+bool AudioRecorder::createNewEmptyAudio(const uint8_t* newName) {
   if(nextFreeIndex >= MAX_NUM_AUDIOS) {
     return false;
   }
-  audios.at(nextFreeIndex++) = std::move(Audio(newName));
+  const uint32_t newAudioAddress = memoryManager.addSongToNextSlot(newName);
+  addAudio(newName, newAudioAddress);
   return true;
 }
 
-void AudioRecorder::setRecordeEventCallback(AudioRecorder::RecordEventCallback newCallback) {
-  recordEventCallback = newCallback;
-}
-void AudioRecorder::startRecordingCurrentAudio() {
-  if(recordEventCallback != nullptr) {
-    recordEventCallback(true);
-  }
+//void AudioRecorder::setRecordEventCallback(AudioRecorder::RecordEventCallback newCallback) {
+//  recordEventCallback = newCallback;
+//}
+//void AudioRecorder::setPlayEventCallback(AudioRecorder::PlayEventCallback newCallback) {
+//  playEventCallback = newCallback;
+//}
+void AudioRecorder::startRecordingCurrentAudio(void(*finishedCallback)()) {
+//  if(recordEventCallback != nullptr) {
+//    recordEventCallback(true);
+//  }
+  audios[selectedAudioIndex].record(finishedCallback);
 }
 void AudioRecorder::stopRecordingCurrentAudio() {
-  if(recordEventCallback != nullptr) {
-    recordEventCallback(false);
-  }
+//  if(recordEventCallback != nullptr) {
+//    recordEventCallback(false);
+//  }
+  //audios[selectedAudioIndex].record();
 }
-void AudioRecorder::startPlayingCurrentAudio() {}
-void AudioRecorder::stopPlayingCurrentAudio() {}
+void AudioRecorder::startPlayingCurrentAudio(void(*finishedCallback)()) {
+  audios[selectedAudioIndex].play(finishedCallback);
+}
+void AudioRecorder::stopPlayingCurrentAudio() {
+  //audios[selectedAudioIndex].play();
+}
 
 void AudioRecorder::eraseAllAudios() {
   for(auto& audio : audios) {
-    audio.erase();
+    //audio.erase();
   }
   nextFreeIndex = 0;
   selectedAudioIndex = 0;
+  memoryManager.eraseAll();
 }
 
 bool AudioRecorder::selectNextAudio() {
@@ -75,5 +92,7 @@ const char* AudioRecorder::getCurrentAudioName() const {
 uint8_t AudioRecorder::getNumberOfStoredAudios() const{
   return nextFreeIndex;
 }
-
+void AudioRecorder::addAudio(const uint8_t* name, uint32_t address) {
+  audios.at(nextFreeIndex++) = Audio(name, address);
+}
 }

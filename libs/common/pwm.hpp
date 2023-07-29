@@ -29,10 +29,13 @@ namespace Microtech {
 template <typename TIMER, typename PIN>
 class PWM_T {
 public:
- static constexpr void initialize() {
-   TIMER::initialize();
-   PIN::init();
- }
+  using IsrCallback = void(*)();
+  static constexpr _iq MAX_DUTY_CYCLE = _IQ(100.0);
+
+  static constexpr void initialize() {
+    TIMER::initialize();
+    PIN::init();
+  }
 
  /**
   * Class to set the period of the PWM
@@ -43,7 +46,6 @@ public:
   */
  template<uint64_t periodValue, typename Duration = std::chrono::microseconds>
  static void setPwmPeriod() {
-   (void)currentTask;
    // Re-Register the task
    TIMER::template registerTask<periodValue, Duration>(&currentTask);
 
@@ -53,16 +55,18 @@ public:
 
  }
 
+  static constexpr void setIsrCallback(IsrCallback newCallback) {
+    isrCallback = newCallback;
+  }
  /**
   * Method to set the PWM duty cycle.
   * The duty cycle can be between 0 and 100.
   */
- static constexpr bool setDutyCycle(const _iq newDutyCycle) {
+ static constexpr bool setNextDutyCycle(const _iq newDutyCycle) {
    if (newDutyCycle > MAX_DUTY_CYCLE) {
      return false;
    }
    dutyCycle = newDutyCycle;
-   updateDutyCycleRegister();
    return true;
  }
 
@@ -86,17 +90,23 @@ private:
    *(TIMER::REG_CCR2) = _IQint(valueCCR1);
  }
 
- static constexpr _iq MAX_DUTY_CYCLE = _IQ(100.0);
+  static constexpr void handleIsr() {
+   updateDutyCycleRegister();
+  }
 
  static TaskHandler currentTask;
  static volatile _iq dutyCycle;
+ static IsrCallback isrCallback;
 };
 
 template <typename TIMER, typename PIN>
-TaskHandler PWM_T<TIMER, PIN>::currentTask = TaskHandler(nullptr, true);
+TaskHandler PWM_T<TIMER, PIN>::currentTask = TaskHandler(&PWM_T<TIMER, PIN>::handleIsr, true);
 
 template <typename TIMER, typename PIN>
 volatile _iq PWM_T<TIMER, PIN>::dutyCycle = 0;
+
+template <typename TIMER, typename PIN>
+typename PWM_T<TIMER, PIN>::IsrCallback PWM_T<TIMER, PIN>::isrCallback = nullptr;
 }  // namespace Microtech
 
 #endif  // MICROTECH_PWM_HPP

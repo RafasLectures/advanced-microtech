@@ -26,6 +26,8 @@ public:
   static void specificRightAction();
   static void specificEnterAction();
 
+  static void recordingFinishedCallback();
+
 private:
 };
 

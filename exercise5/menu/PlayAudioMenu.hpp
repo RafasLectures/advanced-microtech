@@ -26,6 +26,7 @@ public:
   static void specificRightAction();
   static void specificEnterAction();
 
+  static void playingFinishedCallback();
 private:
 };
 }  // namespace AdvancedMicrotech

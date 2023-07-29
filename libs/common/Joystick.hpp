@@ -10,6 +10,7 @@
 #ifndef ADVANVED_MICROTECH_JOYSTICK_HPP
 #define ADVANVED_MICROTECH_JOYSTICK_HPP
 
+#include <array>
 #include <cstdint>
 
 namespace AdvancedMicrotech {
@@ -59,7 +60,7 @@ public:
    * the callback will be called within the same context/thread.
    * @param adcValues The values to be evaluated and converted into joystick events.
    */
-  void evaluateJoystick(const uint8_t (*adcValues)[4]) noexcept;
+  void evaluateJoystick(const std::array<uint8_t,4>* adcValues) noexcept;
 
 private:
   Callback upEventCallback = nullptr;     ///< Callback to be called when joystick UP event occurs.

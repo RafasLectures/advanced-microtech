@@ -260,8 +260,8 @@ public:
      * which is correct: (500000/8)-1 = 62499 = 0xF423.
      */
     *REG_CCR0 = COMPARE_VALUE;
-    // Enable interrupt for CCR0.
-    start();
+//    // Enable interrupt for CCR0.
+//    start();
   }
 
   static constexpr void stop() {

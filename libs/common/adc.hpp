@@ -11,37 +11,38 @@
 
 namespace Microtech {
 
-/**
- * Class to provide access to a ADC port
- */
-template <typename FILTER>
-class ADC_HANDLE {
-public:
-  /**
-   * Protected constructor so only the ADC class can create a handle.
-   * @param adcValueRef the reference to where the raw value will be written
-   */
-  constexpr ADC_HANDLE(uint16_t* adcValuePtr) : rawValue(adcValuePtr) {}
-  /**
-   * Method to get the latest raw ADC read
-   * @return the latest raw value
-   */
-  constexpr uint16_t getRawValue() const noexcept {
-    return *rawValue;
-  }
-  /**
-   * Method to get the latest filtered ADC value
-   * @return the latest filtered value
-   */
-  constexpr uint16_t getFilteredValue() noexcept {
-    return filter.filterNewSample(rawValue);
-  }
-
-private:
-  FILTER filter;             // filter
-  uint16_t* rawValue;                 ///< Reference to the raw value.
-};
-
+extern void (*handleADC10IsrFunc)(void);
+///**
+// * Class to provide access to a ADC port
+// */
+//template <typename FILTER>
+//class ADC_HANDLE {
+//public:
+//  /**
+//   * Protected constructor so only the ADC class can create a handle.
+//   * @param adcValueRef the reference to where the raw value will be written
+//   */
+//  constexpr ADC_HANDLE(uint16_t* adcValuePtr) : rawValue(adcValuePtr) {}
+//  /**
+//   * Method to get the latest raw ADC read
+//   * @return the latest raw value
+//   */
+//  constexpr uint16_t getRawValue() const noexcept {
+//    return *rawValue;
+//  }
+//  /**
+//   * Method to get the latest filtered ADC value
+//   * @return the latest filtered value
+//   */
+//  constexpr uint16_t getFilteredValue() noexcept {
+//    return filter.filterNewSample(rawValue);
+//  }
+//
+//private:
+//  FILTER filter;             // filter
+//  uint16_t* rawValue;                 ///< Reference to the raw value.
+//};
+//
 enum class SampleAndHoldCycles {
   ADC10CLK_4_CYCLES = 4,
   ADC10CLK_8_CYCLES = 8,
@@ -49,16 +50,25 @@ enum class SampleAndHoldCycles {
   ADC10CLK_64_CYCLES = 64
 };
 
-template<typename CLOCK, typename MCLK, SampleAndHoldCycles sampleAndHoldCycles>
+enum class ClockDiv {
+  ADC10CLK_DIV_1 = 1,
+  ADC10CLK_DIV_2 = 2,
+  ADC10CLK_DIV_3 = 3,
+  ADC10CLK_DIV_4 = 4,
+  ADC10CLK_DIV_5 = 5,
+  ADC10CLK_DIV_6 = 6,
+  ADC10CLK_DIV_7 = 7,
+  ADC10CLK_DIV_8 = 8,
+
+};
+
+template<typename CLOCK, typename MCLK, SampleAndHoldCycles sampleAndHoldCycles, ClockDiv DIV>
 class ADC_T {
-  static constexpr float SAMPLE_AND_HOLD_TIME = static_cast<float>(sampleAndHoldCycles) * (1.0/CLOCK::frequency);
+  static constexpr float SAMPLE_AND_HOLD_TIME = static_cast<float>(sampleAndHoldCycles) * (static_cast<float>(DIV)/CLOCK::frequency);
   // Conversion time is always 13 ADC clock cycles
-  static constexpr float CONVERSION_TIME = 13.0 * (1.0/CLOCK::frequency);
+  static constexpr float CONVERSION_TIME = 13.0 * (static_cast<float>(DIV)/CLOCK::frequency);
 public:
   ADC_T() = default;
-  // Deleted copy and move constructors
-//  ADC_T(ADC_T&) = delete;
-//  ADC_T(ADC_T&&) = delete;
   ~ADC_T() = default;
 
   /**
@@ -84,49 +94,68 @@ public:
 
     // Source of sample and hold from ADC10SC bit
     // Always start sampling from the ADC0, since we are populating the adcValues array with DTC
-    ADC10CTL1 = CONSEQ_3 + getClockType() + ADC10DIV_0 + SHS_0 + INCH_0;
-
-    // Setup Data transfer control 0
-    // The basic idea is that everytime the ADC does a conversion, the
-    // Data transfer control automatically writes the results (without any need of CPU) back to the
-    // adcValues array.
-    // References of the adcValues array are passed to the AdcHandles
-    // so when the user gets the AdcHandles, the latest raw value will always be available
-    // without the user having to actively fetch any data from the ADC10MEM.
-    constexpr uint8_t NUMBER_OF_CHANNELS = sizeof(adcValues) / sizeof(adcValues[0]);
-    ADC10DTC0 = ADC10CT;                                   // enable continuous transfer
-    ADC10DTC1 = NUMBER_OF_CHANNELS;                        // Number of transfers is equal to the size of array.
-    ADC10SA = (size_t)(&adcValues[0]);                     // Starts at address is the first entry of the array;
+    ADC10CTL1 = CONSEQ_2 + getClockType() + getDivRegValue() + SHS_0 + INCH_0;
+    ADC10AE0 = 0x1; // Only enable channel 0
+    // Leave DTC to be set by user
   }
 
+  static constexpr void setADCIsrFunctionHandler(void (*pFunction)()) {
+    handleADC10IsrFunc = pFunction;
+  }
+
+  static constexpr void setDTCBuffer(volatile uint16_t* buffer, uint8_t length) {
+    // Setup Data transfer control 0
+    // The basic idea is that everytime the ADC does a conversion, the
+    // Data transfer control automatically writes the results (without any need of CPU) back a buffer
+    // without the user having to actively fetch any data from the ADC10MEM.
+    ADC10DTC0 = ADC10CT + ADC10TB;             // enable continuous transfer and two block transfer mode
+    ADC10DTC1 = length;                        // Number of transfers is equal to the size of array.
+    ADC10SA = (uint16_t)buffer;                // Starts at address is the first entry of the array;
+  }
+  static constexpr uint8_t getFinishedBlock()  {
+    return (ADC10DTC0 & ADC10B1) >> 1;
+  }
   /**
    * Method that starts the ADC conversion
    * Previous to this call, one has to already have requested the ADC handles, as well as
    * initialized the ADC.
    */
   static constexpr void startConversion() {
-    setRegisterBits(ADC10CTL0, static_cast<uint16_t>(ADC10SC + ENC));
+    ADC10CTL0 |= ADC10IE;
+    ADC10CTL0 |= ADC10SC + ENC;
   }
 
-  static constexpr std::chrono::nanoseconds getPeriodForNewSample() {
-    return std::chrono::nanoseconds(((SAMPLE_AND_HOLD_TIME + CONVERSION_TIME) + ((1.0/MCLK::frequency) * 4.0))*1000000000);
-  }
   /**
-   * Method to retrieve an ADC Handle.
-   * @tparam pinNumber specify pin number of ADC to be retrieved
-   * @tparam bitMask Not needed to be filled. There is a default value
-   * @return The handle of that ADC pin
+   * Method that stops the ADC conversion
+   * Previous to this call, one has to already have requested the ADC handles, as well as
+   * initialized the ADC.
    */
-  template<uint8_t pinNumber, typename FILTER, uint8_t bitMask = 0x01 << pinNumber>
-  static constexpr ADC_HANDLE<FILTER> getAdcHandle() {
-    constexpr uint8_t MAX_NUM_ADC_CHANNELS = 7;
-    static_assert(pinNumber <= MAX_NUM_ADC_CHANNELS, "Cannot set ADC to pin higher than 7");
-    setRegisterBits(ADC10AE0, bitMask);  // Sets pin as an ADC input
-
-    // Creates the AdcHandle and passes the array entry equivalent to the pin to the handle.
-    ADC_HANDLE<FILTER> retVal(&adcValues[pinNumber]);
-    return std::move(retVal);
+  static constexpr void stopConversion() {
+    ADC10CTL0 &= ~(ADC10IE + ADC10SC + ENC);
   }
+
+  static constexpr std::chrono::microseconds getPeriodForNewSample() {
+//    return std::chrono::microseconds(((SAMPLE_AND_HOLD_TIME + CONVERSION_TIME) + ((1.0/MCLK::frequency) * 4.0))*1000000);
+    std::chrono::duration<float> fSeconds(SAMPLE_AND_HOLD_TIME + CONVERSION_TIME);
+    return std::chrono::duration_cast<std::chrono::microseconds>(fSeconds);
+  }
+
+//  /**
+//   * Method to retrieve an ADC Handle.
+//   * @tparam pinNumber specify pin number of ADC to be retrieved
+//   * @tparam bitMask Not needed to be filled. There is a default value
+//   * @return The handle of that ADC pin
+//   */
+//  template<uint8_t pinNumber, typename FILTER, uint8_t bitMask = 0x01 << pinNumber>
+//  static constexpr ADC_HANDLE<FILTER> getAdcHandle() {
+//    constexpr uint8_t MAX_NUM_ADC_CHANNELS = 7;
+//    static_assert(pinNumber <= MAX_NUM_ADC_CHANNELS, "Cannot set ADC to pin higher than 7");
+//    setRegisterBits(ADC10AE0, bitMask);  // Sets pin as an ADC input
+//
+//    // Creates the AdcHandle and passes the array entry equivalent to the pin to the handle.
+//    ADC_HANDLE<FILTER> retVal(&adcValues[pinNumber]);
+//    return std::move(retVal);
+//  }
 
 private:
 
@@ -148,20 +177,27 @@ private:
     }
     return ADC10SHT_0;
   }
-  /**
-   * Array that stores the conversion values from the ADC.
-   * It is automatically populated by the DTC
-   */
-  static std::array<uint16_t, 1> adcValues;
-};
-template<typename CLOCK, typename MCKL, SampleAndHoldCycles sampleAndHoldCycles>
-std::array<uint16_t, 1> ADC_T<CLOCK, MCKL, sampleAndHoldCycles>::adcValues{0};
-}  // namespace Microtech
+  static constexpr uint16_t getDivRegValue() {
+    switch (DIV) {
+      case ClockDiv::ADC10CLK_DIV_1: return ADC10DIV_0;
+      case ClockDiv::ADC10CLK_DIV_2: return ADC10DIV_1;
+      case ClockDiv::ADC10CLK_DIV_3: return ADC10DIV_2;
+      case ClockDiv::ADC10CLK_DIV_4: return ADC10DIV_3;
+      case ClockDiv::ADC10CLK_DIV_5: return ADC10DIV_4;
+      case ClockDiv::ADC10CLK_DIV_6: return ADC10DIV_5;
+      case ClockDiv::ADC10CLK_DIV_7: return ADC10DIV_6;
+      case ClockDiv::ADC10CLK_DIV_8: return ADC10DIV_7;
 
-// ADC10 Interruption
-// #pragma vector = ADC10_VECTOR
-//__interrupt void ADC10_ISR(void) {
-//
-//}
+    }
+  }
+//  /**
+//   * Array that stores the conversion values from the ADC.
+//   * It is automatically populated by the DTC
+//   */
+//  static std::array<uint16_t, 1> adcValues;
+};
+//template<typename CLOCK, typename MCKL, SampleAndHoldCycles sampleAndHoldCycles>
+//std::array<uint16_t, 1> ADC_T<CLOCK, MCKL, sampleAndHoldCycles>::adcValues{0};
+}  // namespace Microtech
 
 #endif  // MICROTECH_ADC_HPP

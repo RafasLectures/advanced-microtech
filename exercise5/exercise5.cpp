@@ -46,7 +46,9 @@
 #include "audiorecorder/AudioRecorder.hpp"
 #include "libs/common/Joystick.hpp"
 
+#include "audiorecorder/MemoryManagerImpl.hpp"
 #include "libs/common/pwm.hpp"
+#include "libs/digipoti.hpp"
 #include "menu/MainMenu.hpp"
 
 using namespace AdvancedMicrotech;
@@ -89,10 +91,11 @@ typedef GPIO_OUTPUT_T<3, 5, HIGH> WP;    // Setting P3.4 as output and initial v
 typedef FLASH_T<CS, HOLD, WP, SPI> FLASH;
 
 // ========= Internal ADC =============
-typedef Microtech::ADC_T<ADCOSC_T, MCLK, Microtech::SampleAndHoldCycles::ADC10CLK_16_CYCLES> ADC;
+typedef Microtech::ADC_T<ADCOSC_T, MCLK, Microtech::SampleAndHoldCycles::ADC10CLK_8_CYCLES, Microtech::ClockDiv::ADC10CLK_DIV_5> ADC;
+typedef AdvancedMicrotech::DigiPoti_T<I2C> DIGI_POTI;
 
 // ========= Timers =============
-typedef Microtech::TIMER_T<Microtech::TIMER_A, 1, 1, SMCLK> TimerA1;
+//typedef Microtech::TIMER_T<Microtech::TIMER_A, 1, 1, SMCLK> TimerA1;
 
 // ============== PWM =============
 typedef Microtech::TIMER_T<Microtech::TIMER_A, 0, 1, SMCLK, true> PwmTimerA0;
@@ -103,45 +106,59 @@ typedef Microtech::PWM_T<PwmTimerA0, PWM_OUTPUT> PWM;
 constexpr LcdCustomCharacter ARROW_UP_DOWN{{0x04, 0x0E, 0x15, 0x04, 0x04, 0x15, 0x0E, 0x04}, 0x01};
 constexpr LcdCustomCharacter ENTER{{0x01, 0x01, 0x01, 0x05, 0x09, 0x1F, 0x08, 0x04}, 0x02};
 
-void getDataFromAdc();
+typedef AdvancedMicrotech::MemoryManagerImpl<FLASH, ADC, ADC_DAC, PWM> memoryManager;
+
+//void getDataFromAdc();
 
 AudioRecorder audioRecorder;
 
 // Instantiation of welcome message and joystick classes
 Joystick joystick;
 
-Microtech::ADC_HANDLE<Microtech::SimpleMovingAverage<1>> micInput = ADC::getAdcHandle<0, Microtech::SimpleMovingAverage<1>>();
+//Microtech::ADC_HANDLE<Microtech::SimpleMovingAverage<1>> micInput = ADC::getAdcHandle<0, Microtech::SimpleMovingAverage<1>>();
 
+//Microtech::TaskHandler countingTask(&getDataFromAdc, true);
 
-// Timer with CLK_DIV = 8 and since the period of SMCLK is 1us we also let the timer know that.
-//constexpr Microtech::TimerConfigBase<1, SMCLK> TIMER_CONFIG(Microtech::TimerClockSource::Option::SMCLK);
-// Creates a 1ms periodic task
-Microtech::TaskHandler countingTask(&getDataFromAdc, true);
+//void getDataFromAdc() {
+//  uint8_t const micValue8Bits = (micInput.getRawValue() >> 2);
+//  //  ringBuffer.put(micValue8Bits);
+//  //  ringBuffer.get();
+//  const _iq micValue = _IQ(micValue8Bits);
+//  // Calculates the new duty cycle
+//  const _iq dutyCyclePWM = _IQmpy(_IQdiv(micValue, _IQ(255)),PWM::MAX_DUTY_CYCLE);
+//  PWM::setDutyCycle(dutyCyclePWM);
+//}
 
-RingBuffer<uint8_t, 20> ringBuffer;
+//void recordEvent(const bool startRecording) {
+//  if(startRecording) {
+//    recording = true;
+//    TimerA1::start();
+//    PWM::start();
+//  } else {
+//    recording = false;
+//    TimerA1::stop();
+//    PWM::stop();
+//  }
+//}
+//void playEvent(const bool startPlaying) {
+//  if(startPlaying) {
+//    playing = true;
+//    TimerA1::start();
+//    PWM::start();
+//  } else {
+//    playing = false;
+//    TimerA1::stop();
+//    PWM::stop();
+//  }
+//}
 
-
-void getDataFromAdc() {
-  volatile uint16_t const micValue8Bits = micInput.getRawValue();
-//  ringBuffer.put(micValue8Bits);
-//  ringBuffer.get();
-  volatile const _iq micValue = _IQ(micValue8Bits);  // Reads current "period" register
-  //  Calculates the value of the CCR2 based on the value of the current CCR0 value.
-  volatile const _iq dutyCyclePWM = _IQdiv(micValue, _IQ(255));
-  PWM::setDutyCycle(dutyCyclePWM);
-}
-
-void recordEvent(const bool startRecording) {
-  if(startRecording) {
-    TimerA1::start();
-    PWM::start();
-  } else {
-    TimerA1::stop();
-    PWM::stop();
-  }
-}
 int main(void) {
   initMSP();
+  SMCLK::init();
+  MCLK::init();
+
+  I2C_SPI::init();
+
   // Initialize LCD
   LCD::initialize();
   LCD::enable(true);
@@ -152,37 +169,53 @@ int main(void) {
 
   // Initialize internal ADC
   ADC::initialize();
-  ADC::startConversion();
+  //ADC::startConversion();
+
+  DIGI_POTI::initialize();
+  DIGI_POTI::setResistance(240);
 
   // Initialize I2C and ADC
-  I2C_SPI::init();
   ADC_DAC::initialize();
   ADC_DAC::write(0xFF);  // Backlight ON
 
-  // Initialize FLASH
-  FLASH::init();
-  audioRecorder.setFreeTime(std::chrono::seconds(130));
-
   MenuItem::setDependencies(&audioRecorder, &joystick);
   MenuItem::setDisplay<LCD>();
+
+  audioRecorder.setFreeTime(std::chrono::seconds(130));
+
+  // Initialize FLASH
+  FLASH::init();
+
   PWM::initialize();
-  PWM::setPwmPeriod<20>();
+  PWM::setPwmPeriod<ADC::getPeriodForNewSample().count()>();
   PWM::stop();
 
-  TimerA1::initialize();
-  TimerA1::registerTask<100, std::chrono::microseconds>(&countingTask);
-  TimerA1::stop();
+//  TimerA1::initialize();
+//  TimerA1::registerTask<22>(&countingTask);
+//  TimerA1::stop();
 
-  audioRecorder.setRecordeEventCallback(&recordEvent);
+  AudioRecorder::setMemoryManager<memoryManager>();
+  Audio::setMemoryManager<memoryManager>();
+  audioRecorder.initialize();
+//  audioRecorder.setRecordEventCallback(&recordEvent);
+//  audioRecorder.setPlayEventCallback(&playEvent);
+
+
   ADC_DAC::initialize();
-
   MainMenu::select();
 
   delay_ms(20);
-  uint8_t adcValues[ADC_DAC::NUMBER_AD_CHANNELS]{0, 0, 0, 0};  // Buffer used to retrieve the ADC values
+  std::array<uint8_t,ADC_DAC::NUMBER_AD_CHANNELS> adcValues{0, 0, 0, 0};  // Buffer used to retrieve the ADC values
   while (1) {
-    ADC_DAC::read(&adcValues[0]);
-    joystick.evaluateJoystick(&adcValues);
-    delay_ms(2);
+    if(!memoryManager::executeAction()) {
+      ADC_DAC::read(adcValues.data());
+      joystick.evaluateJoystick(&adcValues);
+    }
+
+
+    // write ADC values from buffer to flash memory
+    // or
+    // read ADC values from flash into buffer and write values from buffer to PWM
+
   }
 }

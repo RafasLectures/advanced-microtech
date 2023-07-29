@@ -43,15 +43,17 @@ public:
    *  (1 pt.)
    */
   static constexpr void init() {
+    delay_us(200);
+      // Make sure the bus is not being used by another instance before change it to SPI mode.
+    while(busy()) {}
     MOSI::init();
     MISO::init();
     SCLK::init();
+
     BUS_SELECTION::init();
     BUS_SELECTION::set_low();
 
-    // Make sure the bus is not being used by another instance before change it to SPI mode.
-    while(busy()) {
-    }
+
     
     // Set the interruption function pointers to current class interruption handle functions
     USCI::spiTxISRFunction = &SPI_T<MOSI, MISO, SCLK, CLOCK, BUS_SELECTION, BAUDRATE, MASTER, MSB>::handleTxIsr;

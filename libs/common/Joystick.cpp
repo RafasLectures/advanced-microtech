@@ -18,7 +18,7 @@ void Joystick::registerPressEventCallback(Callback callback) noexcept {
   pressEventCallback = callback;
 }
 
-void Joystick::evaluateJoystick(const uint8_t (*adcValues)[4]) noexcept {
+void Joystick::evaluateJoystick(const std::array<uint8_t,4>* adcValues) noexcept {
   constexpr uint8_t X_AD_CHANNEL = 1;      // Variable just to make easier to extract the ADC value
   constexpr uint8_t Y_AD_CHANNEL = 2;      // Variable just to make easier to extract the ADC value
   constexpr uint8_t PRESS_AD_CHANNEL = 3;  // Variable just to make easier to extract the ADC value

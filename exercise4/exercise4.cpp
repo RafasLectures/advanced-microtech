@@ -80,7 +80,7 @@ typedef GPIO_OUTPUT_T<3, 5, HIGH> WP;      // Setting P3.4 as output and initial
 typedef FLASH_T<CS, HOLD, WP, SPI> FLASH;
 
 static constexpr uint8_t WELCOME_MESSAGE_SIZE = 17;   // Size of the welcome message + null terminator
-static constexpr uint32_t FLASH_ADDRESS = 0x00;       // Address to read/store the welcome message
+static constexpr uint32_t FLASH_ADDRESS = 0x00FFFD;       // Address to read/store the welcome message
 
 // Custom LCD characters
 constexpr LcdCustomCharacter ARROW_UP_DOWN{{0x04, 0x0E, 0x15, 0x04, 0x04, 0x15, 0x0E, 0x04}, 0x00};
@@ -222,7 +222,7 @@ int main(void) {
 
     ADC_DAC::initialize();
     delay_ms(20);
-    uint8_t adcValues[ADC_DAC::NUMBER_AD_CHANNELS]{0,0,0,0};  // Buffer used to retrieve the ADC values
+    std::array<uint8_t,ADC_DAC::NUMBER_AD_CHANNELS> adcValues{0, 0, 0, 0};  // Buffer used to retrieve the ADC values
     while (1) {
         ADC_DAC::read(&adcValues[0]);
         joystick.evaluateJoystick(&adcValues);

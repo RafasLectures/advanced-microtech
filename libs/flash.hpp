@@ -30,18 +30,17 @@ public:
     HOLD::init();
     WP::init();
     SPI::init();
-    uint8_t ID[3]{0};
-
-    sendInstruction(READ_ID, false);
-    SPI::read(sizeof(ID), &ID[0]);
-    CS::set_high();
-
-    if (ID[0] != M25P16_MANUFACTURER || ID[1] != M25P16_MEMORY_TYPE) {
-      while (1) {
-        __no_operation();
-      }
-    }
-    return;
+//    uint8_t ID[3]{0};
+//
+//    sendInstruction(READ_ID, false);
+//    SPI::read(sizeof(ID), &ID[0]);
+//    CS::set_high();
+//
+//    if (ID[0] != M25P16_MANUFACTURER || ID[1] != M25P16_MEMORY_TYPE) {
+//      while (1) {
+//        __no_operation();
+//      }
+//    }
   }
 
   /**
@@ -61,6 +60,19 @@ public:
     CS::set_high();
   }
 
+  static constexpr void prepareRead(uint32_t address) {
+    waitUntilNotBusy();
+    sendInstructionToAddress(address, READ_DATA, false);
+  }
+
+  static constexpr void keepReading(uint16_t length, uint8_t* data) {
+    SPI::read(length, data);
+  }
+
+  static constexpr void finishRead() {
+    CS::set_high();
+  }
+
   /**
    * Write <length> bytes from <data>, starting at address <address>.
    * The address will be incremented by the number of bytes written.
@@ -72,13 +84,19 @@ public:
    *  (1 pt.)
    */
   static constexpr void write(uint32_t address, uint16_t length, uint8_t* data) {
-    sectorErase(address);
-    waitUntilNotBusy();
-    sendInstruction(WRITE_ENABLE, true);
-    waitUntilNotBusy();
-    sendInstructionToAddress(address, PAGE_PROGRAM, false);
-    SPI::write(length, data);
-    CS::set_high();
+    uint16_t initDataPoint = 0;
+    while(length > 0) {
+      uint32_t writeLength = ((address & 0xFF0000) | 0xFFFF) - address + 1;
+      if(writeLength > length) {
+        writeLength = length;
+      }
+      sendInstruction(WRITE_ENABLE, true);
+      waitUntilNotBusy();
+      writeInSection(address, writeLength, &data[initDataPoint]);
+      initDataPoint += writeLength;
+      length -= writeLength;
+      address += writeLength;
+    }
   }
 
   /**
@@ -90,6 +108,17 @@ public:
     sendInstruction(WRITE_ENABLE, true);
     waitUntilNotBusy();
     sendInstructionToAddress(address, SECTOR_ERASE, true);
+  }
+
+  /**
+   * Method to erase a sector of the flash chip.
+   * @param address Address within the sector to erase. Any address within the sector will trigger the whole
+   *                sector erase.
+   */
+  static constexpr void bulkErase() {
+    sendInstruction(WRITE_ENABLE, true);
+    waitUntilNotBusy();
+    sendInstruction(BULK_ERASE, true);
   }
 
 private:
@@ -126,6 +155,12 @@ private:
     if (finalMessage) {
       CS::set_high();
     }
+  }
+
+  static constexpr void writeInSection(uint32_t address, uint16_t length, uint8_t* data) {
+    sendInstructionToAddress(address, PAGE_PROGRAM, false);
+    SPI::write(length, data);
+    CS::set_high();
   }
 
   /**

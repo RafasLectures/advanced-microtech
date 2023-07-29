@@ -2,7 +2,9 @@
 
 namespace AdvancedMicrotech {
 
-Audio::Audio(const char* newName) {
+MemoryManager Audio::memoryManager;
+
+Audio::Audio(const uint8_t* newName, uint32_t newAddress) : address(newAddress){
   for(uint8_t i = 0; i < name.size(); i++) {
     if(!newName) {
       break;
@@ -11,15 +13,22 @@ Audio::Audio(const char* newName) {
   }
 }
 
-void Audio::play() noexcept{
-
+void Audio::play(void(*finishedCallback)()) noexcept {
+  playingFinishedCallback = finishedCallback;
+  memoryManager.play(this);
+  // start PWM
 }
-void Audio::record() noexcept{
-
+void Audio::record(void(*finishedCallback)()) noexcept {
+  recordingFinishedCallback = finishedCallback;
+  memoryManager.record(this);
 }
-void Audio::erase() noexcept{
 
+void Audio::recordingFinished() noexcept {
+  if(recordingFinishedCallback) {
+    recordingFinishedCallback();
+  }
 }
+
 uint32_t Audio::getAddress() const noexcept{
   return address;
 }
